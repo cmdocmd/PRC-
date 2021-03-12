@@ -146,7 +146,6 @@ std::stringstream serialize_world(Worlds world)
 
 void FLUSH_WORLDS(Worlds world)
 {
-    std::cout << "am i reach ? " << std::endl;
     if (WORLD_EXIST(world.name)) //UPDATE
     {
         UPDATE_WORLD(serialize_world(world), world.name);
@@ -173,7 +172,7 @@ void SAVE_WORLDS(ENetHost *server)
                 continue;
             if (pinfo(currentPeer)->currentWorld == worlds.at(i).name)
             {
-               // canBeFree = false;
+                canBeFree = false;
             }
         }
         if (canBeFree) //SAVE TO MYSQL AND DELETE THE ITEMS
