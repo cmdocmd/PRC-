@@ -7,10 +7,11 @@
 #include "utils.cpp"
 #include <sstream>
 #include "DialogHandler.cpp"
+#include "worlds.cpp"
 
 void UPDATE(std::stringstream str, std::string growid);
 bool CHECK_LOGIN(std::string growid, std::string pass);
-std::istream* UPDATE_DATA(std::string growid);
+std::istream *PLAYER_DATA(std::string growid);
 
 namespace Events
 {
@@ -23,7 +24,7 @@ namespace Events
         peer->data = new player; //Creating a New Player
         sendData(server, peer);
     }
-    void Recieve(ENetPacket *packet, ENetPeer *peer, string cch)
+    void Recieve(ENetHost *server, ENetPacket *packet, ENetPeer *peer, string cch)
     {
         int MessageType = GetMessageTypeFromPacket(packet);
         std::cout << "MessageType: " << MessageType << std::endl;
@@ -158,16 +159,16 @@ namespace Events
                     }
                     if (CHECK_LOGIN(pinfo(peer)->username, pinfo(peer)->password)) //correct username and password
                     {
-                        std::istream *blobdata = UPDATE_DATA(pinfo(peer)->username);
+                        std::istream *blobdata = PLAYER_DATA(pinfo(peer)->username);
                         delete (player *)peer->data;
                         player *ply;
                         {
-                            boost::archive::binary_iarchive ia(*blobdata); //crashes at this line
+                            boost::archive::binary_iarchive ia(*blobdata);
                             ia >> ply;
                         }
                         peer->data = ply;
 
-                        std::cout << pinfo(peer)->feet << std::endl;
+                        SendWorldOffers(peer);
                     }
                     else
                     {
@@ -188,9 +189,32 @@ namespace Events
         case 3:
         {
             std::cout << "from case3: " << cch << std::endl;
-            if (cch == "action|quit")
+
+            std::stringstream ss(cch);
+            std::string to;
+            bool joinReq = false;
+            while (std::getline(ss, to, '\n'))
             {
-                enet_peer_disconnect_later(peer, 0);
+                std::vector<string> ex = explode("|", to);
+                if (ex[0] == "name" && joinReq)
+                {
+                    if (!pinfo(peer)->InLobby)
+                    {
+                        break;
+                    }
+                    joinWorld(server, peer, ex[1], 0, 0);
+                }
+                if (ex[0] == "action")
+                {
+                    if (ex[1] == "quit")
+                    {
+                        enet_peer_disconnect_later(peer, 0);
+                    }
+                    if (ex[1] == "join_request")
+                    {
+                        joinReq = true;
+                    }
+                }
             }
             break;
         }

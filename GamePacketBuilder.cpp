@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include "enet/include/enet/enet.h"
 #include <string.h>
@@ -227,6 +228,22 @@ namespace Packets
             .build()
             .send(peer);
     }
+    void requestWorldSelectMenu(ENetPeer *peer, string message)
+    {
+        GamePacketBuilder()
+            .appendString("OnRequestWorldSelectMenu")
+            .appendString(message)
+            .build()
+            .send(peer);
+    }
+    void onfailedtoenterworld(ENetPeer *peer)
+    {
+        GamePacketBuilder()
+            .appendString("OnFailedToEnterWorld")
+            .appendIntx(1)
+            .build()
+            .send(peer);
+    }
     void refresh_data(ENetPeer *peer)
     {
         if (itemsDat != NULL)
@@ -251,4 +268,14 @@ namespace Packets
             enet_peer_disconnect_later(peer, 0);
         }
     }
+}
+
+void SendWorldOffers(ENetPeer *peer)
+{
+    if (!pinfo(peer)->InLobby)
+    {
+        return;
+    }
+
+    Packets::requestWorldSelectMenu(peer, "");
 }

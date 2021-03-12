@@ -21,6 +21,7 @@ private:
         ar &password;
         ar &mac;
         ar &country;
+        ar &currentWorld;
         ar &back;
         ar &hand;
         ar &feet;
@@ -41,6 +42,7 @@ public:
     string password;
     string mac;
     string country;
+    string currentWorld;
     int back;
     int hand;
     int feet;

@@ -16,6 +16,14 @@ typedef unsigned char __int8;
 typedef unsigned short __int16;
 typedef unsigned int DWORD;
 
+void LOAD_WORLDS()
+{
+    GET_WORLD(server, "CMD").info;
+    GET_WORLD(server, "IMBUSY").info;
+    GET_WORLD(server, "HADI").info;
+    GET_WORLD(server, "SECRET").info;
+}
+
 void Start_ENet()
 {
     printf("[ENet]  Starting...\n");
@@ -51,7 +59,7 @@ void Run()
             case ENET_EVENT_TYPE_RECEIVE:
             {
                 cout << "receiving...\n";
-                Events::Recieve(event.packet, event.peer, GetTextPointerFromPacket(event.packet));
+                Events::Recieve(server, event.packet, event.peer, GetTextPointerFromPacket(event.packet));
                 enet_packet_destroy(event.packet);
                 continue;
             }
@@ -72,9 +80,9 @@ void Run()
 
 int main()
 {
+    LOAD_WORLDS();
     cout << "RebornTM\n";
     Start_ENet();
-    //MYSQL::Test();
     itemsbuild();
     Run();
 }

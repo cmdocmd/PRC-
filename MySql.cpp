@@ -130,7 +130,7 @@ bool CHECK_LOGIN(std::string growid, std::string pass)
     return correct;
 }
 
-std::istream* UPDATE_DATA(std::string growid)
+std::istream* PLAYER_DATA(std::string growid)
 {
     try
     {
@@ -154,6 +154,124 @@ std::istream* UPDATE_DATA(std::string growid)
         if (result->getString(2).c_str() == growid)
         {
             blobdata = result->getBlob(4);
+        }
+    }
+
+    delete result;
+    delete pstmt;
+    delete con;
+
+    return blobdata;
+}
+
+//WORLDS MYSQL
+
+void INSERT_WORLD(std::string name, std::stringstream blob)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+
+    con->setSchema("gt");
+    pstmt = con->prepareStatement("INSERT INTO worlds(name, data) VALUES(?,?)");
+    pstmt->setString(1, name);
+    pstmt->setBlob(2, &blob);
+    pstmt->execute();
+
+    delete pstmt;
+    delete con;
+}
+
+void UPDATE_WORLD(std::stringstream str, std::string name)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+
+    con->setSchema("gt");
+
+    //update
+    pstmt = con->prepareStatement("UPDATE worlds SET data = ? WHERE name = ?");
+    pstmt->setBlob(1, &str);
+    pstmt->setString(2, name);
+    pstmt->executeQuery();
+
+    delete con;
+    delete pstmt;
+}
+
+bool WORLD_EXIST(std::string world)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+    bool exist = false;
+    con->setSchema("gt");
+
+    pstmt = con->prepareStatement("SELECT * FROM worlds WHERE name = ?");
+    pstmt->setString(1, world);
+    result = pstmt->executeQuery();
+
+    while (result->next())
+    {
+        if (result->getString(1).c_str() == world)
+        {
+            exist = true;
+        }
+    }
+
+    delete result;
+    delete pstmt;
+    delete con;
+
+    return exist;
+}
+
+std::istream* WORLD_DATA(std::string world)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+    std::istream *blobdata;
+    con->setSchema("gt");
+
+    pstmt = con->prepareStatement("SELECT * FROM worlds WHERE name = ?");
+    pstmt->setString(1, world);
+    result = pstmt->executeQuery();
+
+    while (result->next())
+    {
+        if (result->getString(1).c_str() == world)
+        {
+            blobdata = result->getBlob(2);
         }
     }
 
