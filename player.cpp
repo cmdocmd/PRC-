@@ -22,6 +22,9 @@ private:
         ar &mac;
         ar &country;
         ar &currentWorld;
+        ar &name;
+        ar &netID;
+        ar &userID;
         ar &back;
         ar &hand;
         ar &feet;
@@ -32,6 +35,10 @@ private:
         ar &ances;
         ar &neck;
         ar &mask;
+        ar &cpx;
+        ar &cpy;
+        ar &x;
+        ar &y;
         ar &inAccount;
         ar &InLobby;
         ar &usingDialog;
@@ -43,6 +50,9 @@ public:
     string mac;
     string country;
     string currentWorld;
+    string name;
+    int netID;
+    int userID;
     int back;
     int hand;
     int feet;
@@ -53,6 +63,10 @@ public:
     int ances;
     int neck;
     int mask;
+    int cpx;
+    int cpy;
+    int x;
+    int y;
     bool inAccount = false;
     bool InLobby = false;
     bool usingDialog = false;
@@ -63,7 +77,7 @@ player *pinfo(ENetPeer *peer)
     return (player *)(peer->data);
 }
 
-std::stringstream serialize_player(player* ply)
+std::stringstream serialize_player(player *ply)
 {
     std::stringstream str;
     {
@@ -72,5 +86,3 @@ std::stringstream serialize_player(player* ply)
     }
     return str;
 }
-
-//https://stackoverflow.com/questions/27925018/c-boostarchives-and-mysql-blobs-error-with-deserialization
