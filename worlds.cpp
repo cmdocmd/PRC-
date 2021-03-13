@@ -1,16 +1,18 @@
 #pragma once
-#include <iostream>
-#include <stdio.h>
-#include <sstream>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
-#include "enet/include/enet/enet.h"
+#include <boost/serialization/array.hpp>
+#include <array>
+#include <iostream>
+#include <sstream>
 #include "player.cpp"
+#include "utils.cpp"
 #include "GamePacketBuilder.cpp"
 
-using std::string;
+int cId = 1;
+
+typedef unsigned char BYTE;
 
 bool WORLD_EXIST(std::string world);
 std::istream *WORLD_DATA(std::string world);
@@ -25,73 +27,52 @@ string getStrUpper(string txt)
     return ret;
 }
 
-class WorldItem
-{
-private:
+
+class WorldItem {
+  private:
     friend class boost::serialization::access;
-    template <class Archieve>
-    void serialize(Archieve &ar, const unsigned int version)
-    {
-        ar &foreground;
-        ar &background;
-        ar &breakLevel;
-        ar &breakTime;
-        ar &water;
-        ar &fire;
-        ar &glue;
-        ar &red;
-        ar &green;
-        ar &blue;
+    template <class Ar> void serialize(Ar& ar, unsigned) {
+        ar& foreground& background& breakLevel& breakTime& water& fire& glue&
+            red& green& blue;
     }
 
-public:
-    int foreground = 0;
-    int background = 0;
-    int breakLevel = 0;
+  public:
+    int foreground          = 0;
+    int background          = 0;
+    int breakLevel          = 0;
     long long int breakTime = 0;
-    bool water = false;
-    bool fire = false;
-    bool glue = false;
-    bool red = false;
-    bool green = false;
-    bool blue = false;
+    bool water              = false;
+    bool fire               = false;
+    bool glue               = false;
+    bool red                = false;
+    bool green              = false;
+    bool blue               = false;
 };
 
 class Worlds
 {
-private:
+  private:
     friend class boost::serialization::access;
-    template <class Archieve>
-    void serialize(Archieve &ar, const unsigned int version)
-    {
-        ar &width;
-        ar &height;
-        ar &name;
-        ar &items;
-        ar &owner;
-        ar &weather;
-        ar &isPublic;
-        ar &isNuked;
+    template <class Ar> void serialize(Ar& ar, unsigned) {
+        ar& width& height& name& items& owner& weather& isPublic& isNuked;
     }
 
-public:
+  public:
     int width;
     int height;
-    string name;
-    WorldItem *items;
-    string owner = "";
-    int weather = 0;
-    bool isPublic = false;
-    bool isNuked = false;
+    std::string name;
+    std::array<WorldItem, 100 * 60> items;
+    std::string owner = "";
+    int weather       = 0;
+    bool isPublic     = false;
+    bool isNuked      = false;
 };
 
-Worlds generateWorld(string name, int width, int height)
-{
+Worlds generateWorld(std::string name, int width, int height) {
     Worlds world;
-    world.name = name;
+    world.name   = name;
     world.width = width;
     world.height = height;
-    world.items = new WorldItem[world.width * world.height];
     for (int i = 0; i < world.width * world.height; i++)
     {
         if (i >= 3800 && i < 5400 && !(rand() % 50))
@@ -134,14 +115,23 @@ Worlds generateWorld(string name, int width, int height)
 
 std::vector<Worlds> worlds;
 
-std::stringstream serialize_world(Worlds world)
-{
+std::stringstream serialize_world(Worlds const& world) {
     std::stringstream str;
     {
         boost::archive::binary_oarchive oa(str);
         oa << world;
     }
     return str;
+}
+
+Worlds deserialize(std::string world) {
+    Worlds wld;
+    std::istream *blobdata = WORLD_DATA(world);
+    {
+        boost::archive::binary_iarchive ia(*blobdata);
+        ia >> wld;
+    }
+    return wld;
 }
 
 void FLUSH_WORLDS(Worlds world)
@@ -160,7 +150,6 @@ void SAVE_WORLDS(ENetHost *server)
 {
     for (int i = 4; i < static_cast<int>(worlds.size()); i++)
     {
-        std::cout << worlds.at(i).name << std::endl;
         bool canBeFree = true;
         ENetPeer *currentPeer;
 
@@ -177,8 +166,8 @@ void SAVE_WORLDS(ENetHost *server)
         }
         if (canBeFree) //SAVE TO MYSQL AND DELETE THE ITEMS
         {
+            std::cout << worlds.at(i).name << std::endl;
             FLUSH_WORLDS(worlds.at(i));
-            delete[] worlds.at(i).items;
             worlds.erase(worlds.begin() + i);
             i--;
         }
@@ -222,12 +211,7 @@ AWorld GET_WORLD(ENetHost *server, std::string world)
     }
     if (WORLD_EXIST(world)) //LOAD
     {
-        Worlds wld;
-        std::istream *blobdata = WORLD_DATA(world);
-        {
-            boost::archive::binary_iarchive ia(*blobdata); //crashes at this line
-            ia >> wld;
-        }
+        Worlds wld = deserialize(world);
         std::cout << wld.name << std::endl;
         worlds.push_back(wld);
         ret.id = worlds.size() - 1;
@@ -247,6 +231,89 @@ AWorld GET_WORLD(ENetHost *server, std::string world)
     }
 }
 
+void sendWorld(ENetPeer *peer, Worlds *world)
+{
+
+    //((PlayerInfo*)(peer->data))->joinClothesUpdated = false;
+
+    int xSize = world->width;
+    int ySize = world->height;
+    int square = xSize * ySize;
+    int namelen = world->name.length();
+
+    int alloc = (8 * square);
+    int total = 78 + namelen + square + 24 + alloc;
+
+    BYTE *data = new BYTE[total];
+    int s1 = 4, s3 = 8, zero = 0;
+
+    memset(data, 0, total);
+
+    memcpy(data, &s1, 1);
+    memcpy(data + 4, &s1, 1);
+    memcpy(data + 16, &s3, 1);
+    memcpy(data + 66, &namelen, 1);
+    memcpy(data + 68, world->name.c_str(), namelen);
+    memcpy(data + 68 + namelen, &xSize, 1);
+    memcpy(data + 72 + namelen, &ySize, 1);
+    memcpy(data + 76 + namelen, &square, 2);
+    BYTE *blc = data + 80 + namelen;
+    for (int i = 0; i < square; i++)
+    {
+        //removed cus some of blocks require tile extra and it will crash the world without
+        memcpy(blc, &zero, 2);
+
+        memcpy(blc + 2, &world->items[i].background, 2);
+        int type = 0x00000000;
+        // type 1 = locked
+        if (world->items[i].water)
+            type |= 0x04000000;
+        if (world->items[i].glue)
+            type |= 0x08000000;
+        if (world->items[i].fire)
+            type |= 0x10000000;
+        if (world->items[i].red)
+            type |= 0x20000000;
+        if (world->items[i].green)
+            type |= 0x40000000;
+        if (world->items[i].blue)
+            type |= 0x80000000;
+
+        memcpy(blc + 4, &type, 4);
+        blc += 8;
+    }
+
+    //int totalitemdrop = worldInfo->dropobject.size();
+    //memcpy(blc, &totalitemdrop, 2);
+
+    ENetPacket *packetw = enet_packet_create(data, total, ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(peer, 0, packetw);
+    delete[] data;
+
+    for (int i = 0; i < square; i++)
+    {
+        PlayerMoving data;
+        //data.packetType = 0x14;
+        data.packetType = 0x3;
+
+        //data.characterState = 0x924; // animation
+        data.characterState = 0x0; // animation
+        data.x = i % world->width;
+        data.y = i / world->height;
+        data.punchX = i % world->width;
+        data.punchY = i / world->width;
+        data.XSpeed = 0;
+        data.YSpeed = 0;
+        data.netID = -1;
+        data.plantingTree = world->items[i].foreground;
+        BYTE *raw = packPlayerMoving(&data);
+        SendPacketRaw(4, raw, 56, 0, peer, ENET_PACKET_FLAG_RELIABLE);
+        delete[] raw;
+    }
+    pinfo(peer)->currentWorld = world->name;
+    Packets::consoleMessage(peer, "`#[`0" + world->name + " `9World Locked by " + world->owner + "`#]");
+}
+
 void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
 {
     try
@@ -260,7 +327,31 @@ void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
         {
             Worlds wld;
             wld = GET_WORLD(server, act).info;
-            //just sendworld
+            sendWorld(peer, &wld);
+            int x = 3040;
+            int y = 736;
+
+            for (int j = 0; j < wld.width * wld.height; j++)
+            {
+                if (wld.items[j].foreground == 6)
+                {
+                    x = (j % wld.width) * 32;
+                    y = (j / wld.width) * 32;
+                }
+            }
+            pinfo(peer)->cpx = x;
+            pinfo(peer)->cpy = y;
+            if (x2 != 0 && y2 != 0)
+            {
+                x = x2;
+                y = y2;
+            }
+            int uid = pinfo(peer)->userID; //TODO DONT READ THE FLAG OF THE PACKET BUT FROM DATABASE
+            Packets::onSpawn(peer, "spawn|avatar\nnetID|" + std::to_string(cId) + "\nuserID|" + std::to_string(uid) + "\ncolrect|0|0|20|30\nposXY|" + std::to_string(x) + "|" + std::to_string(y) + "\nname|``" + pinfo(peer)->name + "``\ncountry|" + pinfo(peer)->country + "\ninvis|0\nmstate|0\nsmstate|0\ntype|local\n");
+            pinfo(peer)->netID = cId;
+            onPeerConnect(server, peer);
+            cId++;
+            //sendInventory(peer, pdata(peer)->inventory);
         }
     }
     catch (int e)
@@ -282,9 +373,4 @@ void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
             return;
         }
     }
-}
-
-void sendWorld(ENetPeer *peer, Worlds *wld)
-{
-    //TODO
 }
