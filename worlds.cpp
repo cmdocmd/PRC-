@@ -27,51 +27,56 @@ string getStrUpper(string txt)
     return ret;
 }
 
-
-class WorldItem {
-  private:
+class WorldItem
+{
+private:
     friend class boost::serialization::access;
-    template <class Ar> void serialize(Ar& ar, unsigned) {
-        ar& foreground& background& breakLevel& breakTime& water& fire& glue&
-            red& green& blue;
+    template <class Ar>
+    void serialize(Ar &ar, unsigned)
+    {
+        ar &foreground &background &breakLevel &breakTime &water &fire &glue &
+            red &green &blue;
     }
 
-  public:
-    int foreground          = 0;
-    int background          = 0;
-    int breakLevel          = 0;
+public:
+    int foreground = 0;
+    int background = 0;
+    int breakLevel = 0;
     long long int breakTime = 0;
-    bool water              = false;
-    bool fire               = false;
-    bool glue               = false;
-    bool red                = false;
-    bool green              = false;
-    bool blue               = false;
+    bool water = false;
+    bool fire = false;
+    bool glue = false;
+    bool red = false;
+    bool green = false;
+    bool blue = false;
 };
 
 class Worlds
 {
-  private:
+private:
     friend class boost::serialization::access;
-    template <class Ar> void serialize(Ar& ar, unsigned) {
-        ar& width& height& name& items& owner& weather& isPublic& isNuked;
+    template <class Ar>
+    void serialize(Ar &ar, unsigned)
+    {
+        ar &width &height &name &items &owner &weather &isPublic &isNuked;
     }
 
-  public:
+public:
     int width;
     int height;
     std::string name;
 
     std::array<WorldItem, 100 * 60> items;
     std::string owner = "";
-    int weather       = 0;
-    bool isPublic     = false;
-    bool isNuked      = false;
+    int weather = 0;
+    bool isPublic = false;
+    bool isNuked = false;
 };
 
-Worlds generateWorld(std::string name, int width, int height) {
+Worlds generateWorld(std::string name, int width, int height)
+{
     Worlds world;
-    world.name   = name;
+    world.name = name;
     world.width = width;
     world.height = height;
     for (int i = 0; i < world.width * world.height; i++)
@@ -116,7 +121,8 @@ Worlds generateWorld(std::string name, int width, int height) {
 
 std::vector<Worlds> worlds;
 
-std::stringstream serialize_world(Worlds const& world) {
+std::stringstream serialize_world(Worlds const &world)
+{
     std::stringstream str;
     {
         boost::archive::binary_oarchive oa(str);
@@ -125,7 +131,8 @@ std::stringstream serialize_world(Worlds const& world) {
     return str;
 }
 
-Worlds deserialize(std::string world) {
+Worlds deserialize(std::string world)
+{
     Worlds wld;
     std::istream *blobdata = WORLD_DATA(world);
     {
@@ -151,27 +158,11 @@ void SAVE_WORLDS(ENetHost *server)
 {
     for (int i = 4; i < static_cast<int>(worlds.size()); i++)
     {
-        bool canBeFree = true;
-        ENetPeer *currentPeer;
 
-        for (currentPeer = server->peers;
-             currentPeer < &server->peers[server->peerCount];
-             ++currentPeer)
-        {
-            if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
-                continue;
-            if (pinfo(currentPeer)->currentWorld == worlds.at(i).name)
-            {
-                canBeFree = false;
-            }
-        }
-        if (canBeFree) //SAVE TO MYSQL AND DELETE THE ITEMS
-        {
-            std::cout << worlds.at(i).name << std::endl;
-            FLUSH_WORLDS(worlds.at(i));
-            worlds.erase(worlds.begin() + i);
-            i--;
-        }
+        std::cout << worlds.at(i).name << std::endl;
+        FLUSH_WORLDS(worlds.at(i));
+        worlds.erase(worlds.begin() + i);
+        i--;
     }
 }
 
@@ -287,9 +278,9 @@ void sendWorld(ENetPeer *peer, Worlds *world)
     //int totalitemdrop = worldInfo->dropobject.size();
     //memcpy(blc, &totalitemdrop, 2);
 
-    ENetPacket *packetw = enet_packet_create((void*)&data[0], total, ENET_PACKET_FLAG_RELIABLE);
+    ENetPacket *packetw = enet_packet_create((void *)&data[0], total, ENET_PACKET_FLAG_RELIABLE);
     enet_peer_send(peer, 0, packetw);
-   // delete[] data;
+    // delete[] data;
 
     for (int i = 0; i < square; i++)
     {
