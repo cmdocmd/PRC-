@@ -109,46 +109,42 @@ struct PlayerMoving
     int secondnetID;
 };
 
-BYTE *packPlayerMoving(PlayerMoving *dataStruct)
+std::vector<BYTE> packPlayerMoving(PlayerMoving *dataStruct)
 {
-    BYTE *data = new BYTE[64];
-    for (int i = 0; i < 64; i++)
-    {
-        data[i] = 0;
-    }
-    memcpy(data, &dataStruct->packetType, 4);
-    memcpy(data + 4, &dataStruct->netID, 4);
-    memcpy(data + 12, &dataStruct->characterState, 4);
-    memcpy(data + 20, &dataStruct->plantingTree, 4);
-    memcpy(data + 24, &dataStruct->x, 4);
-    memcpy(data + 28, &dataStruct->y, 4);
-    memcpy(data + 32, &dataStruct->XSpeed, 4);
-    memcpy(data + 36, &dataStruct->YSpeed, 4);
-    memcpy(data + 44, &dataStruct->punchX, 4);
-    memcpy(data + 48, &dataStruct->punchY, 4);
+    std::vector<BYTE> data(64);
+    memcpy(&data[0], &dataStruct->packetType, 4);
+    memcpy(&data[4], &dataStruct->netID, 4);
+    memcpy(&data[12], &dataStruct->characterState, 4);
+    memcpy(&data[20], &dataStruct->plantingTree, 4);
+    memcpy(&data[24], &dataStruct->x, 4);
+    memcpy(&data[28], &dataStruct->y, 4);
+    memcpy(&data[32], &dataStruct->XSpeed, 4);
+    memcpy(&data[36], &dataStruct->YSpeed, 4);
+    memcpy(&data[44], &dataStruct->punchX, 4);
+    memcpy(&data[48], &dataStruct->punchY, 4);
     return data;
 }
 
-void SendPacketRaw(int a1, void *packetData, size_t packetDataSize, void *a4, ENetPeer *peer, int packetFlag)
+void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, void *a4, ENetPeer *peer, int packetFlag)
 {
     ENetPacket *p;
 
     if (peer) // check if we have it setup
     {
-        if (a1 == 4 && *((BYTE *)packetData + 12) & 8)
+        if (a1 == 4 && *((BYTE *)&packetData[12]) & 8)
         {
-            p = enet_packet_create(0, packetDataSize + *((DWORD *)packetData + 13) + 5, packetFlag);
+            p = enet_packet_create(0, packetDataSize + *((DWORD *)&packetData[13]) + 5, packetFlag);
             int four = 4;
             memcpy(p->data, &four, 4);
-            memcpy((char *)p->data + 4, packetData, packetDataSize);
-            memcpy((char *)p->data + packetDataSize + 4, a4, *((DWORD *)packetData + 13));
+            memcpy((char *)p->data + 4, &packetData[0], packetDataSize);
+            memcpy((char *)p->data + packetDataSize + 4, a4, *((DWORD *)&packetData[13]));
             enet_peer_send(peer, 0, p);
         }
         else
         {
             p = enet_packet_create(0, packetDataSize + 5, packetFlag);
             memcpy(p->data, &a1, 4);
-            memcpy((char *)p->data + 4, packetData, packetDataSize);
+            memcpy((char *)p->data + 4, &packetData[0], packetDataSize);
             enet_peer_send(peer, 0, p);
         }
     }

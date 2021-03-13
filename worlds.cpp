@@ -61,6 +61,7 @@ class Worlds
     int width;
     int height;
     std::string name;
+
     std::array<WorldItem, 100 * 60> items;
     std::string owner = "";
     int weather       = 0;
@@ -244,20 +245,20 @@ void sendWorld(ENetPeer *peer, Worlds *world)
     int alloc = (8 * square);
     int total = 78 + namelen + square + 24 + alloc;
 
-    BYTE *data = new BYTE[total];
+    //BYTE *data = new BYTE[total];
+    std::vector<BYTE> data(total);
     int s1 = 4, s3 = 8, zero = 0;
 
-    memset(data, 0, total);
-
-    memcpy(data, &s1, 1);
-    memcpy(data + 4, &s1, 1);
-    memcpy(data + 16, &s3, 1);
-    memcpy(data + 66, &namelen, 1);
-    memcpy(data + 68, world->name.c_str(), namelen);
-    memcpy(data + 68 + namelen, &xSize, 1);
-    memcpy(data + 72 + namelen, &ySize, 1);
-    memcpy(data + 76 + namelen, &square, 2);
-    BYTE *blc = data + 80 + namelen;
+    //memset(data, 0, total);
+    memcpy(&data[0], &s1, 1);
+    memcpy(&data[4], &s1, 1);
+    memcpy(&data[16], &s3, 1);
+    memcpy(&data[66], &namelen, 1);
+    memcpy(&data[68], world->name.c_str(), namelen);
+    memcpy(&data[68] + namelen, &xSize, 1);
+    memcpy(&data[72] + namelen, &ySize, 1);
+    memcpy(&data[76] + namelen, &square, 2);
+    BYTE *blc = &data[80 + namelen];
     for (int i = 0; i < square; i++)
     {
         //removed cus some of blocks require tile extra and it will crash the world without
@@ -286,9 +287,9 @@ void sendWorld(ENetPeer *peer, Worlds *world)
     //int totalitemdrop = worldInfo->dropobject.size();
     //memcpy(blc, &totalitemdrop, 2);
 
-    ENetPacket *packetw = enet_packet_create(data, total, ENET_PACKET_FLAG_RELIABLE);
+    ENetPacket *packetw = enet_packet_create((void*)&data[0], total, ENET_PACKET_FLAG_RELIABLE);
     enet_peer_send(peer, 0, packetw);
-    delete[] data;
+   // delete[] data;
 
     for (int i = 0; i < square; i++)
     {
@@ -306,9 +307,7 @@ void sendWorld(ENetPeer *peer, Worlds *world)
         data.YSpeed = 0;
         data.netID = -1;
         data.plantingTree = world->items[i].foreground;
-        BYTE *raw = packPlayerMoving(&data);
-        SendPacketRaw(4, raw, 56, 0, peer, ENET_PACKET_FLAG_RELIABLE);
-        delete[] raw;
+        SendPacketRaw(4, packPlayerMoving(&data), 56, 0, peer, ENET_PACKET_FLAG_RELIABLE);
     }
     pinfo(peer)->currentWorld = world->name;
     Packets::consoleMessage(peer, "`#[`0" + world->name + " `9World Locked by " + world->owner + "`#]");
