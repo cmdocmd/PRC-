@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include "enet/include/enet/enet.h"
 #include "player.cpp"
@@ -7,6 +8,7 @@
 #include "utils.cpp"
 #include <sstream>
 #include "DialogHandler.cpp"
+#include "commands.cpp"
 #include "worlds.cpp"
 
 void UPDATE(std::stringstream str, std::string growid);
@@ -167,7 +169,6 @@ namespace Events
                             ia >> ply;
                         }
                         peer->data = ply;
-
                         SendWorldOffers(peer);
                     }
                     else
@@ -179,6 +180,10 @@ namespace Events
             if (cch.find("dialog_name") != std::string::npos && pinfo(peer)->usingDialog)
             {
                 Dialog_Handler(cch, peer);
+            }
+            if (cch.find("action|input\n|text|") != std::string::npos)
+            {
+                Commands_Handler(cch, peer, server);
             }
             if (cch.find("action|refresh") != std::string::npos)
             {
@@ -221,13 +226,74 @@ namespace Events
         case 4:
         {
             std::cout << "from case4: " << cch << std::endl;
+            BYTE *tankUpdatePacket = GetStructPointerFromTankPacket(packet);
+            if (tankUpdatePacket)
+            {
+                PlayerMoving *pMov = unpackPlayerMoving(tankUpdatePacket);
+                switch (pMov->packetType)
+                {
+                case 0:
+                    pinfo(peer)->x = pMov->x;
+                    pinfo(peer)->y = pMov->y;
+                    pinfo(peer)->isRotatedLeft = pMov->characterState & 0x10;
+                    if ((pinfo(peer)->isRotatedLeft = pMov->characterState & 0x10))
+                    {
+                        pinfo(peer)->isRotatedLeft = true;
+                    }
+                    else
+                    {
+                        pinfo(peer)->isRotatedLeft = false;
+                    }
+                    sendPData(server, peer, pMov);
+                    if (!pinfo(peer)->joinClothesUpdated)
+                    {
+                        pinfo(peer)->joinClothesUpdated = true;
+                        updateAllClothes(server, peer);
+                    }
+                    break;
+                default:
+                    break;
+                }
+                if (pMov->packetType == 0) //player moves
+                {
+                }
+                if (pMov->packetType == 7) //doors and checkpoints
+                {
+                }
+                if (pMov->packetType == 10) //clothes
+                {
+                }
+                if (pMov->packetType == 11) //take
+                {
+                }
+                if (pMov->packetType == 18)
+                {
+                    sendPData(server, peer, pMov);
+                }
+                if (pMov->packetType == 23) //consumbles
+                {
+                }
+
+                if (pMov->punchX != -1 && pMov->punchY != -1) //TODO PLACE BLOCKS
+                {
+                    if (pMov->packetType == 3)
+                    {
+                    }
+                }
+
+                std::cout << "deleted pMov" << std::endl;
+                delete pMov;
+            }
             break;
         }
         }
     }
     void Disconnect(ENetPeer *peer)
     {
-        UPDATE(serialize_player((player *)peer->data), pinfo(peer)->username);
+        if (pinfo(peer)->inv.size() >= 2)
+        {
+            UPDATE(serialize_player((player *)peer->data), pinfo(peer)->username);
+        }
         delete (player *)peer->data; //deleting the struct
         peer->data = NULL;
     }

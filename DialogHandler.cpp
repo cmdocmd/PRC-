@@ -49,6 +49,8 @@ void Dialog_Handler(std::string cch, ENetPeer *peer)
         }
         if (!ACCOUNT_EXIST(username))
         {
+            Add_ITEM(peer, 18, 200);
+            Add_ITEM(peer, 32, 200);
             INSERT_ACCOUNT(username, password, serialize_player((player *)peer->data));
             Packets::consoleMessage(peer, "`rYour account has been created.");
             Packets::sethasgrowid(peer, 1, username, password);

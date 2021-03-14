@@ -14,6 +14,101 @@ BYTE *playerTri;
 
 using std::string;
 
+enum ClothTypes
+{
+    HAIR,
+    SHIRT,
+    PANTS,
+    FEET,
+    FACE,
+    HAND,
+    BACK,
+    MASK,
+    NECKLACE,
+    ANCES,
+    NONE
+};
+
+enum BlockTypes
+{
+    FOREGROUND,
+    BACKGROUND,
+    SEED,
+    PAIN_BLOCK,
+    BEDROCK,
+    MAIN_DOOR,
+    SIGN,
+    DOOR,
+    CLOTHING,
+    FIST,
+    CONSUMMABLE,
+    CHECKPOINT,
+    GATEWAY,
+    LOCK,
+    WEATHER_MACHINE,
+    JAMMER,
+    GEM,
+    BOARD,
+    UNKNOWN
+};
+
+struct ItemDefinition
+{
+    int id;
+
+    unsigned char editableType = 0;
+    unsigned char itemCategory = 0;
+    unsigned char actionType = 0;
+    unsigned char hitSoundType = 0;
+
+    string name;
+
+    string texture = "";
+    int textureHash = 0;
+    unsigned char itemKind = 0;
+    int val1;
+    unsigned char textureX = 0;
+    unsigned char textureY = 0;
+    unsigned char spreadType = 0;
+    unsigned char isStripeyWallpaper = 0;
+    unsigned char collisionType = 0;
+
+    unsigned char breakHits = 0;
+
+    int dropChance = 0;
+    unsigned char clothingType = 0;
+    BlockTypes blockType;
+    int growTime;
+    ClothTypes clothType;
+    int16_t rarity = 0;
+    unsigned char maxAmount = 0;
+    string extraFile = "";
+    int extraFileHash = 0;
+    int audioVolume = 0;
+    string petName = "";
+    string petPrefix = "";
+    string petSuffix = "";
+    string petAbility = "";
+    unsigned char seedBase = 0;
+    unsigned char seedOverlay = 0;
+    unsigned char treeBase = 0;
+    unsigned char treeLeaves = 0;
+    int seedColor = 0;
+    int seedOverlayColor = 0;
+    bool isMultiFace = false;
+    short val2;
+    short isRayman = 0;
+    string extraOptions = "";
+    string texture2 = "";
+    string extraOptions2 = "";
+    string punchOptions = "";
+    string description = "Nothing to see.";
+    bool updatedgem = false;
+    int last_tile_broken = 0;
+};
+
+std::vector<ItemDefinition> itemDefs;
+
 std::ifstream::pos_type filesize(const char *filename)
 {
     std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
@@ -155,6 +250,320 @@ void itemsbuild()
     {
         std::cout << "Updating items data failed!" << std::endl;
         exit(0);
+    }
+    int itemCount;
+    int memPos = 0;
+    int16_t itemsdatVersion = 0;
+    memcpy(&itemsdatVersion, data + memPos, 2);
+    memPos += 2;
+    memcpy(&itemCount, data + memPos, 4);
+    memPos += 4;
+    for (int i = 0; i < itemCount; i++)
+    {
+        ItemDefinition tile;
+
+        {
+            memcpy(&tile.id, data + memPos, 4);
+            memPos += 4;
+        }
+        {
+            tile.editableType = data[memPos];
+            memPos += 1;
+        }
+        {
+            tile.itemCategory = data[memPos];
+            memPos += 1;
+        }
+        {
+            tile.actionType = data[memPos];
+            memPos += 1;
+        }
+        {
+            tile.hitSoundType = data[memPos];
+            memPos += 1;
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.name += data[memPos] ^ (secret[(j + tile.id) % secret.length()]);
+
+                memPos++;
+            }
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.texture += data[memPos];
+                memPos++;
+            }
+        }
+        memcpy(&tile.textureHash, data + memPos, 4);
+        memPos += 4;
+        tile.itemKind = memPos[data];
+        memPos += 1;
+        memcpy(&tile.val1, data + memPos, 4);
+        memPos += 4;
+        tile.textureX = data[memPos];
+        memPos += 1;
+        tile.textureY = data[memPos];
+        memPos += 1;
+        tile.spreadType = data[memPos];
+        memPos += 1;
+        tile.isStripeyWallpaper = data[memPos];
+        memPos += 1;
+        tile.collisionType = data[memPos];
+        memPos += 1;
+        tile.breakHits = data[memPos] / 6;
+        memPos += 1;
+        memcpy(&tile.dropChance, data + memPos, 4);
+        memPos += 4;
+        tile.clothingType = data[memPos];
+        memPos += 1;
+        memcpy(&tile.rarity, data + memPos, 2);
+        memPos += 2;
+        tile.maxAmount = data[memPos];
+        memPos += 1;
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.extraFile += data[memPos];
+                memPos++;
+            }
+        }
+        memcpy(&tile.extraFileHash, data + memPos, 4);
+        memPos += 4;
+        memcpy(&tile.audioVolume, data + memPos, 4);
+        memPos += 4;
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.petName += data[memPos];
+                memPos++;
+            }
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.petPrefix += data[memPos];
+                memPos++;
+            }
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.petSuffix += data[memPos];
+                memPos++;
+            }
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.petAbility += data[memPos];
+                memPos++;
+            }
+        }
+        {
+            tile.seedBase = data[memPos];
+            memPos += 1;
+        }
+        {
+            tile.seedOverlay = data[memPos];
+            memPos += 1;
+        }
+        {
+            tile.treeBase = data[memPos];
+            memPos += 1;
+        }
+        {
+            tile.treeLeaves = data[memPos];
+            memPos += 1;
+        }
+        {
+            memcpy(&tile.seedColor, data + memPos, 4);
+            memPos += 4;
+        }
+        {
+            memcpy(&tile.seedOverlayColor, data + memPos, 4);
+            memPos += 4;
+        }
+        memPos += 4; // deleted ingredients
+        {
+            memcpy(&tile.growTime, data + memPos, 4);
+            memPos += 4;
+        }
+        memcpy(&tile.val2, data + memPos, 2);
+        memPos += 2;
+        memcpy(&tile.isRayman, data + memPos, 2);
+        memPos += 2;
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.extraOptions += data[memPos];
+                memPos++;
+            }
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.texture2 += data[memPos];
+                memPos++;
+            }
+        }
+        {
+            int16_t strLen = *(int16_t *)&data[memPos];
+            memPos += 2;
+            for (int j = 0; j < strLen; j++)
+            {
+                tile.extraOptions2 += data[memPos];
+                memPos++;
+            }
+        }
+        memPos += 80;
+        if (itemsdatVersion >= 11)
+        {
+            {
+                int16_t strLen = *(int16_t *)&data[memPos];
+                memPos += 2;
+                for (int j = 0; j < strLen; j++)
+                {
+                    tile.punchOptions += data[memPos];
+                    memPos++;
+                }
+            }
+        }
+        if (itemsdatVersion >= 12)
+        {
+
+            memPos += 13;
+        }
+        if (i != tile.id)
+        {
+            std::cout << "Item are unordered!" << i << "/" << tile.id << std::endl;
+        }
+
+        switch (tile.actionType)
+        {
+        case 0:
+            tile.blockType = BlockTypes::FIST;
+            break;
+        case 1:
+            break;
+        case 2:
+            tile.blockType = BlockTypes::DOOR;
+            break;
+        case 3:
+            tile.blockType = BlockTypes::LOCK;
+            break;
+        case 4:
+            tile.blockType = BlockTypes::GEM;
+            break;
+        case 8:
+            tile.blockType = BlockTypes::CONSUMMABLE;
+            break;
+        case 9:
+            tile.blockType = BlockTypes::GATEWAY;
+            break;
+        case 10:
+            tile.blockType = BlockTypes::SIGN;
+            break;
+        case 13:
+            tile.blockType = BlockTypes::MAIN_DOOR;
+            break;
+        case 15:
+            tile.blockType = BlockTypes::BEDROCK;
+            break;
+        case 17:
+            tile.blockType = BlockTypes::FOREGROUND;
+            break;
+        case 18:
+            tile.blockType = BlockTypes::BACKGROUND;
+            break;
+        case 19:
+            tile.blockType = BlockTypes::SEED;
+            break;
+        case 20:
+            tile.blockType = BlockTypes::CLOTHING;
+            switch (tile.clothingType)
+            {
+            case 0:
+                tile.clothType = ClothTypes::HAIR;
+                break;
+            case 1:
+                tile.clothType = ClothTypes::SHIRT;
+                break;
+            case 2:
+                tile.clothType = ClothTypes::PANTS;
+                break;
+            case 3:
+                tile.clothType = ClothTypes::FEET;
+                break;
+            case 4:
+                tile.clothType = ClothTypes::FACE;
+                break;
+            case 5:
+                tile.clothType = ClothTypes::HAND;
+                break;
+            case 6:
+                tile.clothType = ClothTypes::BACK;
+                break;
+            case 7:
+                tile.clothType = ClothTypes::MASK;
+                break;
+            case 8:
+                tile.clothType = ClothTypes::NECKLACE;
+                break;
+            }
+            break;
+        case 21:
+            tile.blockType = BlockTypes::FOREGROUND;
+            break;
+        case 24:
+            tile.blockType = BlockTypes::FOREGROUND;
+            break;
+        case 26: // portal
+            tile.blockType = BlockTypes::DOOR;
+            break;
+        case 27:
+            tile.blockType = BlockTypes::CHECKPOINT;
+            break;
+        case 28: // piano note
+            tile.blockType = BlockTypes::BACKGROUND;
+            break;
+        case 41:
+            tile.blockType = BlockTypes::WEATHER_MACHINE;
+            break;
+        case 34: // bulletin boardd
+            tile.blockType = BlockTypes::BOARD;
+            break;
+        case 61:
+            tile.blockType = BlockTypes::FOREGROUND;
+            break;
+        case 107: // ances
+            tile.blockType = BlockTypes::CLOTHING;
+            tile.clothType = ClothTypes::ANCES;
+            break;
+        default:
+            break;
+        }
+        itemDefs.push_back(tile);
     }
     delete[] data;
     delete[] data1;

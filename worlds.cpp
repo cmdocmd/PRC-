@@ -65,7 +65,6 @@ public:
     int width;
     int height;
     std::string name;
-
     std::array<WorldItem, 100 * 60> items;
     std::string owner = "";
     int weather = 0;
@@ -158,7 +157,6 @@ void SAVE_WORLDS(ENetHost *server)
 {
     for (int i = 4; i < static_cast<int>(worlds.size()); i++)
     {
-
         std::cout << worlds.at(i).name << std::endl;
         FLUSH_WORLDS(worlds.at(i));
         worlds.erase(worlds.begin() + i);
@@ -226,7 +224,7 @@ AWorld GET_WORLD(ENetHost *server, std::string world)
 void sendWorld(ENetPeer *peer, Worlds *world)
 {
 
-    //((PlayerInfo*)(peer->data))->joinClothesUpdated = false;
+    pinfo(peer)->joinClothesUpdated = false;
 
     int xSize = world->width;
     int ySize = world->height;
@@ -301,7 +299,10 @@ void sendWorld(ENetPeer *peer, Worlds *world)
         SendPacketRaw(4, packPlayerMoving(&data), 56, 0, peer, ENET_PACKET_FLAG_RELIABLE);
     }
     pinfo(peer)->currentWorld = world->name;
-    Packets::consoleMessage(peer, "`#[`0" + world->name + " `9World Locked by " + world->owner + "`#]");
+    if (world->owner != "")
+    {
+        Packets::consoleMessage(peer, "`#[`0" + world->name + " `9World Locked by " + world->owner + "`#]");
+    }
 }
 
 void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
@@ -341,7 +342,7 @@ void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
             pinfo(peer)->netID = cId;
             onPeerConnect(server, peer);
             cId++;
-            //sendInventory(peer, pdata(peer)->inventory);
+            sendInventory(peer);
         }
     }
     catch (int e)
@@ -363,4 +364,14 @@ void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
             return;
         }
     }
+}
+
+void SendWorldOffers(ENetPeer *peer)
+{
+    if (!pinfo(peer)->InLobby)
+    {
+        return;
+    }
+
+    Packets::requestWorldSelectMenu(peer, "");
 }

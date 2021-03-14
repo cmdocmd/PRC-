@@ -2,6 +2,8 @@
 #include <iostream>
 #include "enet/include/enet/enet.h"
 #include <string.h>
+#include "player.cpp"
+#include "GamePacketBuilder.cpp"
 
 typedef unsigned char BYTE;
 typedef unsigned int DWORD;
@@ -125,6 +127,22 @@ std::vector<BYTE> packPlayerMoving(PlayerMoving *dataStruct)
     return data;
 }
 
+PlayerMoving *unpackPlayerMoving(BYTE *data)
+{
+    PlayerMoving *dataStruct = new PlayerMoving;
+    dataStruct->packetType = *(int *)(data);
+    dataStruct->netID = *(int *)(data + 4);
+    dataStruct->characterState = *(int *)(data + 12);
+    dataStruct->plantingTree = *(int *)(data + 20);
+    dataStruct->x = *(float *)(data + 24);
+    dataStruct->y = *(float *)(data + 28);
+    dataStruct->XSpeed = *(float *)(data + 32);
+    dataStruct->YSpeed = *(float *)(data + 36);
+    dataStruct->punchX = *(int *)(data + 44);
+    dataStruct->punchY = *(int *)(data + 48);
+    return dataStruct;
+}
+
 void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, void *a4, ENetPeer *peer, int packetFlag)
 {
     ENetPacket *p;
@@ -172,5 +190,179 @@ void onPeerConnect(ENetHost *server, ENetPeer *peer)
                 Packets::onSpawn(currentPeer, "spawn|avatar\nnetID|" + netIdS2 + "\nuserID|" + userid + "\ncolrect|0|0|20|30\nposXY|" + std::to_string(pinfo(peer)->x) + "|" + std::to_string(pinfo(peer)->y) + "\nname|``" + pinfo(peer)->name + "``\ncountry|" + pinfo(peer)->country + "\ninvis|0\nmstate|0\nsmstate|0\n");
             }
         }
+    }
+}
+
+BYTE *GetStructPointerFromTankPacket(ENetPacket *packet)
+{
+    unsigned int packetLenght = packet->dataLength;
+    BYTE *result = NULL;
+    if (packetLenght >= 0x3C)
+    {
+        BYTE *packetData = packet->data;
+        result = packetData + 4;
+        if (*(BYTE *)(packetData + 16) & 8)
+        {
+            if ((int)packetLenght < *(int *)(packetData + 56) + 60)
+            {
+                std::cout << "Packet too small for extended packet to be valid" << std::endl;
+                std::cout << "Sizeof float is 4.  TankUpdatePacket size: 56" << std::endl;
+                result = 0;
+            }
+        }
+        else
+        {
+            int zero = 0;
+            memcpy(packetData + 56, &zero, 4);
+        }
+    }
+    return result;
+}
+void sendPData(ENetHost *server, ENetPeer *peer, PlayerMoving *data)
+{
+    ENetPeer *currentPeer;
+
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (peer != currentPeer)
+        {
+            if (pinfo(peer)->currentWorld == pinfo(currentPeer)->currentWorld)
+            {
+                data->netID = pinfo(peer)->netID;
+
+                SendPacketRaw(4, packPlayerMoving(data), 56, 0, currentPeer, ENET_PACKET_FLAG_RELIABLE);
+            }
+        }
+    }
+}
+void updateAllClothes(ENetHost *server, ENetPeer *peer)
+{
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (pinfo(peer)->currentWorld == pinfo(currentPeer)->currentWorld)
+        {
+            GamePacket p3 = GamePacketBuilder()
+                                .appendString("OnSetClothing")
+                                .appendFloat(pinfo(peer)->hair, pinfo(peer)->shirt, pinfo(peer)->pants)
+                                .appendFloat(pinfo(peer)->feet, pinfo(peer)->face, pinfo(peer)->hand)
+                                .appendFloat(pinfo(peer)->back, pinfo(peer)->mask, (pinfo(peer))->neck)
+                                .appendIntx(pinfo(peer)->skinColor)
+                                .appendFloat(pinfo(peer)->ances, 0.0f, 0.0f)
+                                .build();
+            memcpy(p3.data + 8, &((pinfo(peer))->netID), 4);
+            p3.send(currentPeer);
+
+            GamePacket p4 = GamePacketBuilder()
+                                .appendString("OnSetClothing")
+                                .appendFloat(pinfo(currentPeer)->hair, pinfo(currentPeer)->shirt, pinfo(currentPeer)->pants)
+                                .appendFloat(pinfo(currentPeer)->feet, pinfo(currentPeer)->face, pinfo(currentPeer)->hand)
+                                .appendFloat(pinfo(currentPeer)->back, pinfo(currentPeer)->mask, (pinfo(currentPeer))->neck)
+                                .appendIntx(pinfo(currentPeer)->skinColor)
+                                .appendFloat(pinfo(currentPeer)->ances, 0.0f, 0.0f)
+                                .build();
+            memcpy(p4.data + 8, &((pinfo(currentPeer))->netID), 4);
+            p4.send(peer);
+        }
+    }
+}
+
+static inline void ltrim(string &s)
+{
+    s.erase(s.begin(), find_if(s.begin(), s.end(), [](int ch) {
+                return !isspace(ch);
+            }));
+}
+
+static inline void rtrim(string &s)
+{
+    s.erase(find_if(s.rbegin(), s.rend(), [](int ch) {
+                return !isspace(ch);
+            }).base(),
+            s.end());
+}
+
+static inline void trim(string &s)
+{
+    ltrim(s);
+    rtrim(s);
+}
+
+static inline string trimString(string s)
+{
+    trim(s);
+    return s;
+}
+
+int countSpaces(string &str)
+{
+    int count = 0;
+    int length = str.length();
+    for (int i = 0; i < length; i++)
+    {
+        int c = str[i];
+        if (isspace(c))
+            count++;
+    }
+    return count;
+}
+
+ulong _byteswap_ulong(ulong x)
+{
+    x = ((x & 0xFFFF0000FFFF0000) >> 16) | ((x & 0x0000FFFF0000FFFF) << 16);
+    return ((x & 0xFF00FF00FF00FF00) >> 8) | ((x & 0x00FF00FF00FF00FF) << 8);
+}
+
+void sendInventory(ENetPeer *peer)
+{
+    int inventoryLen = pinfo(peer)->inv.size();
+    int packetLen = 66 + (inventoryLen * 4) + 4;
+    std::vector<BYTE> data2(packetLen);
+    int MessageType = 0x4;
+    int PacketType = 0x9;
+    int NetID = -1;
+    int CharState = 0x8;
+
+    memcpy(&data2[0], &MessageType, 4);
+    memcpy(&data2[4], &PacketType, 4);
+    memcpy(&data2[8], &NetID, 4);
+    memcpy(&data2[16], &CharState, 4);
+    int endianInvVal = _byteswap_ulong(inventoryLen);
+    memcpy(&data2[66 - 4], &endianInvVal, 4);
+    endianInvVal = _byteswap_ulong(pinfo(peer)->invSize);
+    memcpy(&data2[66 - 8], &endianInvVal, 4);
+    int val = 0;
+    for (int i = 0; i < inventoryLen; i++)
+    {
+        val = 0;
+        val |= pinfo(peer)->inv[i].itemID;
+        val |= pinfo(peer)->inv[i].itemCount << 16;
+        val &= 0x00FFFFFF;
+        val |= 0x00 << 24;
+        memcpy(&data2[(i * 4) + 66], &val, 4);
+    }
+    ENetPacket *packet3 = enet_packet_create((void *)&data2[0],
+                                             packetLen,
+                                             ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(peer, 0, packet3);
+}
+
+void Add_ITEM(ENetPeer *peer, int id, int count, bool send = false)
+{
+    PlayerInventory inv;
+    inv.itemID = id;
+    inv.itemCount = count;
+    pinfo(peer)->inv.push_back(inv);
+    if (send)
+    {
+        sendInventory(peer);
     }
 }

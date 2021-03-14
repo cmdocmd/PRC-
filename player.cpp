@@ -10,6 +10,21 @@
 
 using std::string;
 
+class PlayerInventory
+{
+private:
+    friend class boost::serialization::access;
+    template <class Archive>
+    void serialize(Archive &ar, const unsigned int version)
+    {
+        ar &itemID &itemCount;
+    }
+
+public:
+    int itemID;
+    int itemCount;
+};
+
 class player
 {
 private:
@@ -17,31 +32,9 @@ private:
     template <class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
-        ar &username;
-        ar &password;
-        ar &mac;
-        ar &country;
-        ar &currentWorld;
-        ar &name;
-        ar &netID;
-        ar &userID;
-        ar &back;
-        ar &hand;
-        ar &feet;
-        ar &face;
-        ar &hair;
-        ar &shirt;
-        ar &pants;
-        ar &ances;
-        ar &neck;
-        ar &mask;
-        ar &cpx;
-        ar &cpy;
-        ar &x;
-        ar &y;
-        ar &inAccount;
-        ar &InLobby;
-        ar &usingDialog;
+        ar &username &password &mac &country &currentWorld &name &skinColor &netID &userID &back &hand &feet
+            &face &hair &shirt &pants &ances &neck &mask &cpx &cpy &x &y &invSize &inAccount &InLobby &usingDialog
+                &isRotatedLeft &joinClothesUpdated &inv;
     }
 
 public:
@@ -51,6 +44,7 @@ public:
     string country;
     string currentWorld;
     string name;
+    int skinColor = 0x8295C3FF;
     int netID;
     int userID;
     int back;
@@ -67,9 +61,13 @@ public:
     int cpy;
     int x;
     int y;
+    int invSize = 100;
     bool inAccount = false;
     bool InLobby = false;
     bool usingDialog = false;
+    bool isRotatedLeft = false;
+    bool joinClothesUpdated = false;
+    std::vector<PlayerInventory> inv;
 };
 
 player *pinfo(ENetPeer *peer)

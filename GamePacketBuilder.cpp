@@ -1,3 +1,4 @@
+
 #pragma once
 #include <iostream>
 #include "enet/include/enet/enet.h"
@@ -244,6 +245,24 @@ namespace Packets
             .build()
             .send(peer);
     }
+    void ontalkbubble(ENetPeer *peer, int netid, string message, int app = 0)
+    {
+        GamePacketBuilder()
+            .appendString("OnTalkBubble")
+            .appendIntx(netid)
+            .appendString(message)
+            .appendIntx(app)
+            .build()
+            .send(peer);
+    }
+    void onSpawn(ENetPeer *peer, string message)
+    {
+        GamePacketBuilder()
+            .appendString("OnSpawn")
+            .appendString(message)
+            .build()
+            .send(peer);
+    }
     void refresh_data(ENetPeer *peer)
     {
         if (itemsDat != NULL)
@@ -268,14 +287,4 @@ namespace Packets
             enet_peer_disconnect_later(peer, 0);
         }
     }
-}
-
-void SendWorldOffers(ENetPeer *peer)
-{
-    if (!pinfo(peer)->InLobby)
-    {
-        return;
-    }
-
-    Packets::requestWorldSelectMenu(peer, "");
 }
