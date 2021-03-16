@@ -80,7 +80,7 @@ void Run()
 
 int main()
 {
-    LOAD_WORLDS();
+   // LOAD_WORLDS();
     cout << "RebornTM\n";
     Start_ENet();
     itemsbuild();

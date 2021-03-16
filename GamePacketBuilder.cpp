@@ -286,6 +286,31 @@ namespace Packets
             .build()
             .send(peer);
     }
+    void sendclothes(ENetPeer *peer, ENetHost *server)
+    {
+        ENetPeer *currentPeer;
+        for (currentPeer = server->peers;
+             currentPeer < &server->peers[server->peerCount];
+             ++currentPeer)
+        {
+            if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+                continue;
+            if (pinfo(peer)->currentWorld == pinfo(currentPeer)->currentWorld)
+            {
+                GamePacket p3 = GamePacketBuilder()
+                                    .appendString("OnSetClothing")
+                                    .appendFloat(pinfo(peer)->hair, pinfo(peer)->shirt, pinfo(peer)->pants)
+                                    .appendFloat(pinfo(peer)->feet, pinfo(peer)->face, pinfo(peer)->hand)
+                                    .appendFloat(pinfo(peer)->back, pinfo(peer)->mask, (pinfo(peer))->neck)
+                                    .appendIntx(pinfo(peer)->skinColor)
+                                    .appendFloat(pinfo(peer)->ances, 0.0f, 0.0f)
+                                    .build();
+                memcpy(p3.data + 8, &((pinfo(peer))->netID), 4);
+                p3.send(currentPeer);
+            }
+        }
+    }
+
     void refresh_data(ENetPeer *peer)
     {
         if (itemsDat != NULL)

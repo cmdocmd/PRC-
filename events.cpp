@@ -228,6 +228,7 @@ namespace Events
         {
             std::cout << "from case4: " << cch << std::endl;
             BYTE *tankUpdatePacket = GetStructPointerFromTankPacket(packet);
+            Worlds *world = getPlyersWorld(peer);
             if (tankUpdatePacket)
             {
                 PlayerMoving *pMov = unpackPlayerMoving(tankUpdatePacket);
@@ -263,6 +264,36 @@ namespace Events
                 }
                 if (pMov->packetType == 10) //clothes
                 {
+                    switch (itemDefs[pMov->plantingTree].clothingType)
+                    {
+                    case ClothTypes::BACK:
+                        pinfo(peer)->back = (pinfo(peer)->back == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::FACE:
+                        pinfo(peer)->face = (pinfo(peer)->face == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::FEET:
+                        pinfo(peer)->feet = (pinfo(peer)->feet == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::MASK:
+                        pinfo(peer)->mask = (pinfo(peer)->mask == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::HAND:
+                        pinfo(peer)->hand = (pinfo(peer)->hand == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::HAIR:
+                        pinfo(peer)->hair = (pinfo(peer)->hair == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::NECKLACE:
+                        pinfo(peer)->neck = (pinfo(peer)->neck == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    case ClothTypes::ANCES:
+                        pinfo(peer)->ances = (pinfo(peer)->ances == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        break;
+                    default:
+                        break;
+                    }
+                    Packets::sendclothes(peer, server);
                 }
                 if (pMov->packetType == 11) //take
                 {
@@ -277,7 +308,6 @@ namespace Events
 
                 if (pMov->punchX != -1 && pMov->punchY != -1) //TODO PLACE BLOCKS
                 {
-                    Worlds *world = getPlyersWorld(peer);
                     if (world != NULL)
                     {
                         if (pMov->packetType == 3)
@@ -327,13 +357,19 @@ namespace Events
                             {
                                 if (world->isPublic)
                                 {
-                                    OnPlace(pMov->punchX, pMov->punchY, pMov->plantingTree, world, peer, server);
+                                    if (LEGAL_ITEM(peer, pMov->plantingTree))
+                                    {
+                                        OnPlace(pMov->punchX, pMov->punchY, pMov->plantingTree, world, peer, server);
+                                    }
                                 }
                                 else
                                 {
                                     if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
                                     {
-                                        OnPlace(pMov->punchX, pMov->punchY, pMov->plantingTree, world, peer, server);
+                                        if (LEGAL_ITEM(peer, pMov->plantingTree))
+                                        {
+                                            OnPlace(pMov->punchX, pMov->punchY, pMov->plantingTree, world, peer, server);
+                                        }
                                     }
                                     else
                                     {

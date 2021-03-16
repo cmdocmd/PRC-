@@ -113,7 +113,7 @@ struct PlayerMoving
 
 std::vector<BYTE> packPlayerMoving(PlayerMoving *dataStruct)
 {
-    std::vector<BYTE> data(56, 0);
+    std::vector<BYTE> data(56);
     memcpy(&data[0], &dataStruct->packetType, 4);
     memcpy(&data[4], &dataStruct->netID, 4);
     memcpy(&data[12], &dataStruct->characterState, 4);
@@ -370,4 +370,17 @@ void Add_ITEM(ENetPeer *peer, int id, int count, bool send = false)
     {
         sendInventory(peer);
     }
+}
+
+bool LEGAL_ITEM(ENetPeer *peer, int id)
+{
+    bool legal = false;
+    for (int i = 0; i < static_cast<int>(pinfo(peer)->inv.size()); i++)
+    {
+        if (pinfo(peer)->inv[i].itemID == id)
+        {
+            legal = true;
+        }
+    }
+    return legal;
 }
