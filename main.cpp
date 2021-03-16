@@ -18,10 +18,10 @@ typedef unsigned int DWORD;
 
 void LOAD_WORLDS()
 {
-    GET_WORLD(server, "TEST").info;
-    GET_WORLD(server, "MAIN").info;
-    GET_WORLD(server, "ADMIN").info;
-    GET_WORLD(server, "NEW").info;
+    GET_WORLD("TEST").info;
+    GET_WORLD("MAIN").info;
+    GET_WORLD("ADMIN").info;
+    GET_WORLD("NEW").info;
 }
 
 void Start_ENet()
@@ -80,7 +80,7 @@ void Run()
 
 int main()
 {
-    //LOAD_WORLDS();
+    LOAD_WORLDS();
     cout << "RebornTM\n";
     Start_ENet();
     itemsbuild();

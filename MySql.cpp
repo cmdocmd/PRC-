@@ -37,6 +37,7 @@ void INSERT_ACCOUNT(std::string growid, std::string pass, std::stringstream blob
     delete pstmt;
     delete con;
 }
+
 void UPDATE(std::stringstream str, std::string growid)
 {
     try
@@ -162,6 +163,40 @@ std::istream* PLAYER_DATA(std::string growid)
     delete con;
 
     return blobdata;
+}
+
+int PLAYER_ID(std::string growid)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+    int id;
+    con->setSchema("gt");
+
+    pstmt = con->prepareStatement("SELECT * FROM players WHERE username = ?");
+    pstmt->setString(1, growid);
+    result = pstmt->executeQuery();
+
+    while (result->next())
+    {
+        if (result->getString(2).c_str() == growid)
+        {
+            id = result->getInt(1);
+        }
+    }
+
+    delete result;
+    delete pstmt;
+    delete con;
+
+    return id;
 }
 
 //WORLDS MYSQL

@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <fstream>
 #include <string.h>
@@ -140,7 +141,7 @@ uint32_t HashString(unsigned char *str, int len)
     return acc;
 }
 
-unsigned char *getA(string fileName, int *pSizeOut, bool bAddBasePath, bool bAutoDecompress)
+unsigned char *getA(string fileName, int *pSizeOut)
 {
     unsigned char *pData = NULL;
     FILE *fp = fopen(fileName.c_str(), "rb");
@@ -206,7 +207,7 @@ void itemsbuild()
             file1.close();
             const char filename1[] = "player_tribute.dat";
             size = filesize(filename1);
-            pData = getA((string)filename1, &size, false, false);
+            pData = getA((string)filename1, &size);
             std::cout << "player_tribute hash: " << HashString((unsigned char *)pData, size) << std::endl;
             player_hash = HashString((unsigned char *)pData, size);
             delete[] pData;
@@ -239,7 +240,7 @@ void itemsbuild()
             int size = 0;
             const char filename[] = "items.dat"; //items.dat
             size = filesize(filename);
-            pData = getA((string)filename, &size, false, false);
+            pData = getA((string)filename, &size);
             std::cout << "itemsdat hash: " << HashString((unsigned char *)pData, size) << std::endl;
             itemdathash = HashString((unsigned char *)pData, size);
             delete[] pData;

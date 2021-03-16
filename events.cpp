@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include "enet/include/enet/enet.h"
 #include "player.cpp"
@@ -13,6 +12,7 @@
 
 void UPDATE(std::stringstream str, std::string growid);
 bool CHECK_LOGIN(std::string growid, std::string pass);
+int PLAYER_ID(std::string growid);
 std::istream *PLAYER_DATA(std::string growid);
 
 namespace Events
@@ -37,7 +37,7 @@ namespace Events
             std::cout << "from case2: " << cch << std::endl;
             if (!pinfo(peer)->InLobby)
             {
-                Packets::onsupermain(peer, itemdathash, "ubistatic-a.akamaihd.net", "0098/56640/cache/", player_hash);
+                Packets::onsupermain(peer, itemdathash, "ubistatic-a.akamaihd.net", "0098/12040/cache/", player_hash);
                 std::stringstream ss(cch);
                 std::string to;
                 while (std::getline(ss, to, '\n'))
@@ -169,6 +169,7 @@ namespace Events
                             ia >> ply;
                         }
                         peer->data = ply;
+                        pinfo(peer)->userID = PLAYER_ID(pinfo(peer)->username);
                         SendWorldOffers(peer);
                     }
                     else
@@ -276,8 +277,73 @@ namespace Events
 
                 if (pMov->punchX != -1 && pMov->punchY != -1) //TODO PLACE BLOCKS
                 {
-                    if (pMov->packetType == 3)
+                    Worlds *world = getPlyersWorld(peer);
+                    if (world != NULL)
                     {
+                        if (pMov->packetType == 3)
+                        {
+                            switch (pMov->plantingTree)
+                            {
+                            case 18:
+                            {
+                                if (world->isPublic)
+                                {
+                                    if (itemDefs[world->items[pMov->punchX + (pMov->punchY * world->width)].foreground].blockType == BlockTypes::LOCK)
+                                    {
+                                        if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
+                                        {
+                                            OnPunch(pMov->punchX, pMov->punchY, world, peer, server);
+                                        }
+                                        else
+                                        {
+                                            Nothing(peer, pMov->punchX, pMov->punchY);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        OnPunch(pMov->punchX, pMov->punchY, world, peer, server);
+                                    }
+                                }
+                                else
+                                {
+                                    if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
+                                    {
+                                        OnPunch(pMov->punchX, pMov->punchY, world, peer, server);
+                                    }
+                                    else
+                                    {
+                                        Nothing(peer, pMov->punchX, pMov->punchY);
+                                    }
+                                }
+                            }
+                            break;
+
+                            case 32:
+                            {
+                            }
+                            break;
+
+                            default:
+                            {
+                                if (world->isPublic)
+                                {
+                                    OnPlace(pMov->punchX, pMov->punchY, pMov->plantingTree, world, peer, server);
+                                }
+                                else
+                                {
+                                    if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
+                                    {
+                                        OnPlace(pMov->punchX, pMov->punchY, pMov->plantingTree, world, peer, server);
+                                    }
+                                    else
+                                    {
+                                        Nothing(peer, pMov->punchX, pMov->punchY);
+                                    }
+                                }
+                            }
+                            break;
+                            }
+                        }
                     }
                 }
 

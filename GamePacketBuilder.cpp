@@ -8,6 +8,15 @@ typedef unsigned char BYTE;
 
 using std::string;
 
+#pragma once
+#include <iostream>
+#include "enet/include/enet/enet.h"
+#include <string.h>
+
+typedef unsigned char BYTE;
+
+using std::string;
+
 struct GamePacket
 {
 private:
@@ -228,6 +237,20 @@ namespace Packets
             .appendString(tankidpass)
             .build()
             .send(peer);
+    }
+    void onsetcloth(ENetPeer *peer)
+    {
+
+        GamePacket p3 = GamePacketBuilder()
+                            .appendString("OnSetClothing")
+                            .appendFloat(pinfo(peer)->hair, pinfo(peer)->shirt, pinfo(peer)->pants)
+                            .appendFloat(pinfo(peer)->feet, pinfo(peer)->face, pinfo(peer)->hand)
+                            .appendFloat(pinfo(peer)->back, pinfo(peer)->mask, (pinfo(peer))->neck)
+                            .appendIntx(pinfo(peer)->skinColor)
+                            .appendFloat(pinfo(peer)->ances, 0.0f, 0.0f)
+                            .build();
+        memcpy(p3.data + 8, &((pinfo(peer))->netID), 4);
+        p3.send(peer);
     }
     void requestWorldSelectMenu(ENetPeer *peer, string message)
     {

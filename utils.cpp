@@ -113,7 +113,7 @@ struct PlayerMoving
 
 std::vector<BYTE> packPlayerMoving(PlayerMoving *dataStruct)
 {
-    std::vector<BYTE> data(64);
+    std::vector<BYTE> data(56, 0);
     memcpy(&data[0], &dataStruct->packetType, 4);
     memcpy(&data[4], &dataStruct->netID, 4);
     memcpy(&data[12], &dataStruct->characterState, 4);
@@ -149,13 +149,13 @@ void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, 
 
     if (peer) // check if we have it setup
     {
-        if (a1 == 4 && *((BYTE *)&packetData[12]) & 8)
+        if (a1 == 4 && *(&packetData[12]) & 8)
         {
-            p = enet_packet_create(0, packetDataSize + *((DWORD *)&packetData[13]) + 5, packetFlag);
+            p = enet_packet_create(0, packetDataSize + *(((DWORD *)packetData.data()) + 13) + 5, packetFlag);
             int four = 4;
             memcpy(p->data, &four, 4);
             memcpy((char *)p->data + 4, &packetData[0], packetDataSize);
-            memcpy((char *)p->data + packetDataSize + 4, a4, *((DWORD *)&packetData[13]));
+            memcpy((char *)p->data + packetDataSize + 4, a4, *(((DWORD *)packetData.data()) + 13));
             enet_peer_send(peer, 0, p);
         }
         else
@@ -166,6 +166,11 @@ void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, 
             enet_peer_send(peer, 0, p);
         }
     }
+}
+
+bool isHere(ENetPeer *peer, ENetPeer *peer2)
+{
+    return pinfo(peer)->currentWorld == pinfo(peer2)->currentWorld;
 }
 
 void onPeerConnect(ENetHost *server, ENetPeer *peer)
@@ -180,7 +185,7 @@ void onPeerConnect(ENetHost *server, ENetPeer *peer)
             continue;
         if (peer != currentPeer)
         {
-            if (pinfo(peer)->currentWorld == pinfo(currentPeer)->currentWorld)
+            if (isHere(peer, currentPeer))
             {
                 string netIdS = std::to_string(pinfo(currentPeer)->netID);
                 string userids = std::to_string(pinfo(currentPeer)->userID);

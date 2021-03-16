@@ -9,6 +9,7 @@
 #include "player.cpp"
 #include "utils.cpp"
 #include "GamePacketBuilder.cpp"
+#include <chrono>
 
 int cId = 1;
 
@@ -58,7 +59,7 @@ private:
     template <class Ar>
     void serialize(Ar &ar, unsigned)
     {
-        ar &width &height &name &items &owner &weather &isPublic &isNuked;
+        ar &width &height &name &items &owner &weather &id &isPublic &isNuked;
     }
 
 public:
@@ -68,7 +69,8 @@ public:
     std::array<WorldItem, 100 * 60> items;
     std::string owner = "";
     int weather = 0;
-    bool isPublic = false;
+    int id;
+    bool isPublic = true;
     bool isNuked = false;
 };
 
@@ -153,7 +155,7 @@ void FLUSH_WORLDS(Worlds world)
     }
 }
 
-void SAVE_WORLDS(ENetHost *server)
+void SAVE_WORLDS()
 {
     for (int i = 4; i < static_cast<int>(worlds.size()); i++)
     {
@@ -171,10 +173,10 @@ struct AWorld
     int id;
 };
 
-AWorld GET_WORLD(ENetHost *server, std::string world)
+AWorld GET_WORLD(std::string world)
 {
     //WHEN A GUY JOIN A WORLD WE GOTTA FREE THE UNUSED WORLDS BY CALLING SAVE_WORLDS
-    SAVE_WORLDS(server);
+    SAVE_WORLDS();
     AWorld ret;
     world = getStrUpper(world);
     if (world.length() < 1)
@@ -317,7 +319,7 @@ void joinWorld(ENetHost *server, ENetPeer *peer, string act, int x2, int y2)
         else
         {
             Worlds wld;
-            wld = GET_WORLD(server, act).info;
+            wld = GET_WORLD(act).info;
             sendWorld(peer, &wld);
             int x = 3040;
             int y = 736;
@@ -374,4 +376,209 @@ void SendWorldOffers(ENetPeer *peer)
     }
 
     Packets::requestWorldSelectMenu(peer, "");
+}
+
+Worlds *getPlyersWorld(ENetPeer *peer)
+{
+    try
+    {
+        return GET_WORLD(pinfo(peer)->currentWorld).ptr;
+    }
+    catch (int e)
+    {
+        return NULL;
+    }
+}
+
+void Nothing(ENetPeer *peer, int x, int y)
+{
+    PlayerMoving data;
+    data.netID = pinfo(peer)->netID;
+    data.packetType = 0x8;
+    data.plantingTree = 0;
+    data.netID = -1;
+    data.x = x;
+    data.y = y;
+    data.punchX = x;
+    data.punchY = y;
+    SendPacketRaw(4, packPlayerMoving(&data), 56, 0, peer, ENET_PACKET_FLAG_RELIABLE);
+}
+
+void OnPlace(int x, int y, int tile, Worlds *world, ENetPeer *peer, ENetHost *server)
+{
+    if (tile > static_cast<int>(itemDefs.size()))
+    {
+        return;
+    }
+    if (itemDefs[tile].blockType == BlockTypes::LOCK)
+    {
+        if (world->owner != "")
+        {
+            Nothing(peer, x, y);
+            return;
+        }
+        else
+        {
+            world->owner = pinfo(peer)->username;
+            world->isPublic = false;
+            world->id = pinfo(peer)->userID;
+            Packets::ontalkbubble(peer, pinfo(peer)->netID, "`5[`w" + world->name + " has been `&World Locked `wby " + pinfo(peer)->name);
+            pinfo(peer)->worlds.push_back(world->name);
+        }
+    }
+    if (itemDefs[tile].blockType == BlockTypes::CLOTHING)
+    {
+        Nothing(peer, x, y);
+        return;
+    }
+    if (itemDefs[tile].blockType == BlockTypes::BACKGROUND)
+    {
+        world->items[x + (y * world->width)].background = tile;
+    }
+    else
+    {
+        if (world->items[x + (y * world->width)].foreground != 0)
+        {
+            return;
+        }
+        world->items[x + (y * world->width)].foreground = tile;
+    }
+    PlayerMoving data;
+    data.packetType = 0x3;
+    data.characterState = 0x0;
+    data.x = x;
+    data.y = y;
+    data.punchX = x;
+    data.punchY = y;
+    data.XSpeed = 0;
+    data.YSpeed = 0;
+    data.netID = pinfo(peer)->netID;
+    data.plantingTree = tile;
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (isHere(peer, currentPeer))
+        {
+            SendPacketRaw(4, packPlayerMoving(&data), 56, 0, currentPeer, ENET_PACKET_FLAG_RELIABLE);
+        }
+    }
+}
+
+void OnPunch(int x, int y, Worlds *world, ENetPeer *peer, ENetHost *server)
+{
+    int tile = (world->items[x + (y * world->width)].foreground == 0) ? world->items[x + (y * world->width)].background : world->items[x + (y * world->width)].foreground;
+    if (tile == 0 || tile == 6864 || tile == 6 || tile == 8)
+    {
+        Nothing(peer, x, y);
+        return;
+    }
+    int tool = pinfo(peer)->hand;
+    PlayerMoving data;
+    data.characterState = 0x0; // animation
+    data.x = x;
+    data.y = y;
+    data.punchX = x;
+    data.punchY = y;
+    data.XSpeed = 0;
+    data.YSpeed = 0;
+    data.packetType = 0x8;
+    data.plantingTree = (tool == 98 || tool == 1438 || tool == 4956) ? 8 : 6;
+    data.netID = pinfo(peer)->netID;
+    using namespace std::chrono;
+    if ((duration_cast<milliseconds>(system_clock::now().time_since_epoch())).count() - world->items[x + (y * world->width)].breakTime >= 4000)
+    {
+        world->items[x + (y * world->width)].breakTime = (duration_cast<milliseconds>(system_clock::now().time_since_epoch())).count();
+        world->items[x + (y * world->width)].breakLevel = 0; // TODO
+    }
+    if (y < world->height)
+    {
+        world->items[x + (y * world->width)].breakTime = (duration_cast<milliseconds>(system_clock::now().time_since_epoch())).count();
+        world->items[x + (y * world->width)].breakLevel += (int)((tool == 98 || tool == 1438 || tool == 4956) ? 8 : 6); // TODO
+    }
+    int times = 0;
+    if (itemDefs[tile].blockType == BlockTypes::LOCK)
+    {
+        times = 35;
+    }
+    if (tile != 0)
+    {
+        times = 7;
+    }
+    else
+    {
+        times = 6;
+    }
+    int breakhit = 0;
+
+    if (itemDefs[tile].blockType == BlockTypes::LOCK)
+    {
+        breakhit = 30;
+    }
+    else if (tile == 5638)
+    {
+        breakhit = 35;
+    }
+    else
+    {
+        breakhit = itemDefs[tile].breakHits;
+    }
+    if (y < world->height && world->items[x + (y * world->width)].breakLevel >= breakhit * times)
+    {
+        data.packetType = 0x3;
+        data.plantingTree = 18;
+        world->items[x + (y * world->width)].breakLevel = 0;
+        if (world->items[x + (y * world->width)].foreground != 0)
+        {
+            if (world->items[x + (y * world->width)].foreground == 242)
+            {
+                world->owner = "";
+                world->id = 0;
+                world->isPublic = true;
+            }
+            world->items[x + (y * world->width)].foreground = 0;
+        }
+        else
+        {
+            world->items[x + (y * world->width)].background = 6864;
+        }
+    }
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (isHere(peer, currentPeer))
+        {
+            SendPacketRaw(4, packPlayerMoving(&data), 56, 0, currentPeer, ENET_PACKET_FLAG_RELIABLE);
+        }
+    }
+}
+
+void onWrench(Worlds *world, int x, int y, ENetPeer *peer)
+{
+    int block = world->items[x + (y * world->width)].foreground;
+    if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
+    {
+        if (itemDefs[block].blockType == BlockTypes::LOCK)
+        {
+            Packets::consoleMessage(peer, "`rWrench work");
+        }
+    }
+    else if (world->isPublic)
+    {
+        if (itemDefs[block].blockType == BlockTypes::LOCK)
+        {
+            return;
+        }
+    }
+    else
+    {
+        return;
+    }
 }
