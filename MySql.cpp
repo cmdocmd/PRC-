@@ -3,6 +3,7 @@
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/prepared_statement.h>
+#include <sstream>
 
 sql::Driver *driver;
 sql::Connection *con;
@@ -315,4 +316,64 @@ std::istream* WORLD_DATA(std::string world)
     delete con;
 
     return blobdata;
+}
+
+
+//GUILDS MYSQL
+
+void INSERT_GUILD(std::string name, std::stringstream blob)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+
+    con->setSchema("gt");
+    pstmt = con->prepareStatement("INSERT INTO guilds(name, data) VALUES(?,?)");
+    pstmt->setString(1, name);
+    pstmt->setBlob(2, &blob);
+    pstmt->execute();
+
+    delete pstmt;
+    delete con;
+}
+
+bool GUILD_EXIST(std::string guild)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+    bool exist = false;
+    con->setSchema("gt");
+
+    pstmt = con->prepareStatement("SELECT * FROM guilds WHERE name = ?");
+    pstmt->setString(1, guild);
+    result = pstmt->executeQuery();
+
+    while (result->next())
+    {
+        if (result->getString(1).c_str() == guild)
+        {
+            exist = true;
+        }
+    }
+
+    delete result;
+    delete pstmt;
+    delete con;
+
+    return exist;
 }

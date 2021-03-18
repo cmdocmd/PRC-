@@ -180,11 +180,15 @@ namespace Events
             }
             if (cch.find("dialog_name") != std::string::npos && pinfo(peer)->usingDialog)
             {
-                Dialog_Handler(cch, peer);
+                Dialog_Handler(cch, peer, server);
             }
             if (cch.find("action|input\n|text|") != std::string::npos)
             {
                 Commands_Handler(cch, peer, server);
+            }
+            if (cch.find("action|friends") != std::string::npos)
+            {
+                Packets::dialog(peer, "set_default_color|`o\n\nadd_label_with_icon|big|`wSocial Portal``|left|1366|\n\nadd_spacer|small|\nadd_button|friends|`wShow Friends``|left|||\nadd_button|create_guild|`wCreate Guild``|left|||\nend_dialog||OK||\n");
             }
             if (cch.find("action|refresh") != std::string::npos)
             {
@@ -270,7 +274,13 @@ namespace Events
                         pinfo(peer)->back = (pinfo(peer)->back == pMov->plantingTree) ? 0 : pMov->plantingTree;
                         break;
                     case ClothTypes::FACE:
-                        pinfo(peer)->face = (pinfo(peer)->face == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        if (itemDefs[pMov->plantingTree].blockType == BlockTypes::LOCK)
+                        {
+                        }
+                        else
+                        {
+                            pinfo(peer)->face = (pinfo(peer)->face == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                        }
                         break;
                     case ClothTypes::FEET:
                         pinfo(peer)->feet = (pinfo(peer)->feet == pMov->plantingTree) ? 0 : pMov->plantingTree;

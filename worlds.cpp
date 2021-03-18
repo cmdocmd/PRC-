@@ -173,10 +173,13 @@ struct AWorld
     int id;
 };
 
-AWorld GET_WORLD(std::string world)
+AWorld GET_WORLD(std::string world, bool update = false)
 {
     //WHEN A GUY JOIN A WORLD WE GOTTA FREE THE UNUSED WORLDS BY CALLING SAVE_WORLDS
-    SAVE_WORLDS();
+    if (update)
+    {
+        SAVE_WORLDS();
+    }
     AWorld ret;
     world = getStrUpper(world);
     if (world.length() < 1)

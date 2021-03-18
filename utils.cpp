@@ -4,6 +4,7 @@
 #include <string.h>
 #include "player.cpp"
 #include "GamePacketBuilder.cpp"
+#include <memory>
 
 typedef unsigned char BYTE;
 typedef unsigned int DWORD;
@@ -142,6 +143,21 @@ PlayerMoving *unpackPlayerMoving(BYTE *data)
     dataStruct->punchY = *(int *)(data + 48);
     return dataStruct;
 }
+/*PlayerMoving *unpackPlayerMoving(BYTE *data)
+{
+    PlayerMoving *dataStruct = new PlayerMoving;
+    memcpy(data, &dataStruct->packetType, sizeof(int));
+    memcpy(data + 4, &dataStruct->netID, sizeof(int));
+    memcpy(data + 12, &dataStruct->characterState, sizeof(int));
+    memcpy(data + 20, &dataStruct->plantingTree, sizeof(int));
+    memcpy(data + 24, &dataStruct->x, sizeof(float));
+    memcpy(data + 28, &dataStruct->y, sizeof(float));
+    memcpy(data + 32, &dataStruct->XSpeed, sizeof(float));
+    memcpy(data + 36, &dataStruct->YSpeed, sizeof(float));
+    memcpy(data + 44, &dataStruct->characterState, sizeof(int));
+    memcpy(data + 48, &dataStruct->plantingTree, sizeof(int));
+    return dataStruct;
+}*/
 
 void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, void *a4, ENetPeer *peer, int packetFlag)
 {
@@ -155,7 +171,7 @@ void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, 
             int four = 4;
             memcpy(p->data, &four, 4);
             memcpy((char *)p->data + 4, &packetData[0], packetDataSize);
-            memcpy((char *)p->data + packetDataSize + 4, a4, *(((DWORD *)packetData.data()) + 13));
+            //  memcpy((char *)p->data + packetDataSize + 4, a4, *(((DWORD *)packetData.data()) + 13));
             enet_peer_send(peer, 0, p);
         }
         else
