@@ -5,6 +5,7 @@
 #include "player.cpp"
 #include "GamePacketBuilder.cpp"
 #include <memory>
+#include <bits/stdc++.h>
 
 typedef unsigned char BYTE;
 typedef unsigned int DWORD;
@@ -143,21 +144,6 @@ PlayerMoving *unpackPlayerMoving(BYTE *data)
     dataStruct->punchY = *(int *)(data + 48);
     return dataStruct;
 }
-/*PlayerMoving *unpackPlayerMoving(BYTE *data)
-{
-    PlayerMoving *dataStruct = new PlayerMoving;
-    memcpy(data, &dataStruct->packetType, sizeof(int));
-    memcpy(data + 4, &dataStruct->netID, sizeof(int));
-    memcpy(data + 12, &dataStruct->characterState, sizeof(int));
-    memcpy(data + 20, &dataStruct->plantingTree, sizeof(int));
-    memcpy(data + 24, &dataStruct->x, sizeof(float));
-    memcpy(data + 28, &dataStruct->y, sizeof(float));
-    memcpy(data + 32, &dataStruct->XSpeed, sizeof(float));
-    memcpy(data + 36, &dataStruct->YSpeed, sizeof(float));
-    memcpy(data + 44, &dataStruct->characterState, sizeof(int));
-    memcpy(data + 48, &dataStruct->plantingTree, sizeof(int));
-    return dataStruct;
-}*/
 
 void SendPacketRaw(int a1, std::vector<BYTE> packetData, size_t packetDataSize, void *a4, ENetPeer *peer, int packetFlag)
 {
@@ -400,3 +386,328 @@ bool LEGAL_ITEM(ENetPeer *peer, int id)
     }
     return legal;
 }
+
+void Respawn(ENetPeer *peer, bool die)
+{
+    int netid = pinfo(peer)->netID;
+    if (die == false)
+    {
+        Packets::onkill(peer);
+    }
+    GamePacket p2x = GamePacketBuilder()
+                         .appendString("OnSetFreezeState")
+                         .appendInt(0)
+                         .build();
+    memcpy(p2x.data + 8, &netid, 4);
+    int respawnTimeout = 2000;
+    int deathFlag = 0x19;
+    memcpy(p2x.data + 24, &respawnTimeout, 4);
+    memcpy(p2x.data + 56, &deathFlag, 4);
+    p2x.send(peer);
+    Packets::onfreezestate(peer, 2);
+    GamePacket p2 = GamePacketBuilder()
+                        .appendString("OnSetPos")
+                        .appendFloat(pinfo(peer)->cpx, pinfo(peer)->cpy)
+                        .build();
+    memcpy(p2.data + 8, &(pinfo(peer)->netID), 4);
+    respawnTimeout = 2000;
+    memcpy(p2.data + 24, &respawnTimeout, 4);
+    memcpy(p2.data + 56, &deathFlag, 4);
+    p2.send(peer);
+    GamePacket p2a = GamePacketBuilder()
+                         .appendString("OnPlayPositioned")
+                         .appendString("audio/teleport.wav")
+                         .build();
+    memcpy(p2a.data + 8, &netid, 4);
+    respawnTimeout = 2000;
+    memcpy(p2a.data + 24, &respawnTimeout, 4);
+    memcpy(p2a.data + 56, &deathFlag, 4);
+    p2a.send(peer);
+}
+
+int getState(player *info)
+{
+    int val = 0;
+    val |= info->canWalkInBlocks << 0;
+    val |= info->canDoubleJump << 1;
+    val |= info->isInvisible << 2;
+    val |= info->noHands << 3;
+    val |= info->noEyes << 4;
+    val |= info->noBody << 5;
+    val |= info->devilHorns << 6;
+    val |= info->goldenHalo << 7;
+    val |= info->isFrozen << 11;
+    val |= info->isCursed << 12;
+    val |= info->isDuctaped << 13;
+    val |= info->haveCigar << 14;
+    val |= info->isShining << 15;
+    val |= info->isZombie << 16;
+    val |= info->isHitByLava << 17;
+    val |= info->haveHauntedShadows << 18;
+    val |= info->haveGeigerRadiation << 19;
+    val |= info->haveReflector << 20;
+    val |= info->isEgged << 21;
+    val |= info->havePineappleFloag << 22;
+    val |= info->haveFlyingPineapple << 23;
+    val |= info->haveSuperSupporterName << 24;
+    val |= info->haveSupperPineapple << 25;
+    return val;
+}
+
+void sendState(ENetHost *server, ENetPeer *peer)
+{
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (isHere(peer, currentPeer))
+        {
+            PlayerMoving data;
+            data.packetType = 0x14;
+            data.characterState = 0; // animation
+            data.x = 1000;
+            data.y = 100;
+            data.punchX = 0;
+            data.punchY = 0;
+            data.XSpeed = 300;
+            data.YSpeed = 600;
+            data.netID = pinfo(peer)->netID;
+            data.plantingTree = getState(pinfo(peer));
+            std::vector<BYTE> raw = packPlayerMoving(&data);
+            int var = 8421376;
+            memcpy(&raw[1], &var, 3);
+            char str[(sizeof raw) + 1];
+            memcpy(str, &raw[0], sizeof raw);
+            str[sizeof raw] = 0;
+            SendPacketRaw(4, raw, 56, 0, currentPeer, ENET_PACKET_FLAG_RELIABLE);
+        }
+    }
+}
+
+void sendDrop(ENetHost *server, ENetPeer *peer, int netID, int x, int y, int item, int count, BYTE specialEffect)
+{
+    if (item > static_cast<int>(itemDefs.size()))
+    {
+        return;
+    }
+    if (item < 0)
+    {
+        return;
+    }
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (isHere(peer, currentPeer))
+        {
+            PlayerMoving data;
+            data.packetType = 14;
+            data.x = x;
+            data.y = y;
+            data.netID = netID;
+            data.plantingTree = item;
+            float val = count; // item count
+            BYTE val2 = specialEffect;
+
+            std::vector<BYTE> raw = packPlayerMoving(&data);
+            memcpy(&raw[16], &val, 4);
+            memcpy(&raw[1], &val2, 1);
+
+            SendPacketRaw(4, raw, 56, 0, currentPeer, ENET_PACKET_FLAG_RELIABLE);
+        }
+    }
+}
+
+void sendTake(ENetHost *server, ENetPeer *peer, int netID, float x, float y, int item)
+{
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (isHere(peer, currentPeer))
+        {
+            PlayerMoving data;
+            data.packetType = 14;
+            data.x = x;
+            data.y = y;
+            data.netID = netID;
+            data.plantingTree = item;
+            SendPacketRaw(4, packPlayerMoving(&data), 56, 0, currentPeer, ENET_PACKET_FLAG_RELIABLE);
+        }
+    }
+}
+
+void remove_clothes_if_wearing(ENetPeer *peer, ENetHost *server, int id)
+{
+    switch (itemDefs[id].clothingType)
+    {
+    case ClothTypes::BACK:
+        if (pinfo(peer)->back == id)
+        {
+            pinfo(peer)->back = 0;
+            pinfo(peer)->canDoubleJump = false;
+        }
+        sendState(server, peer);
+        break;
+    case ClothTypes::FACE:
+        if (pinfo(peer)->face == id)
+        {
+            pinfo(peer)->face = 0;
+        }
+        break;
+    case ClothTypes::FEET:
+        if (pinfo(peer)->feet == id)
+        {
+            pinfo(peer)->feet = 0;
+        }
+        break;
+    case ClothTypes::MASK:
+        if (pinfo(peer)->mask == id)
+        {
+            pinfo(peer)->mask = 0;
+        }
+        break;
+    case ClothTypes::HAND:
+        if (pinfo(peer)->hand == id)
+        {
+            pinfo(peer)->hand = 0;
+        }
+        break;
+    case ClothTypes::HAIR:
+        if (pinfo(peer)->hair == id)
+        {
+            pinfo(peer)->hair = 0;
+        }
+        break;
+    case ClothTypes::NECKLACE:
+        if (pinfo(peer)->neck == id)
+        {
+            pinfo(peer)->neck = 0;
+        }
+        break;
+    case ClothTypes::ANCES:
+        if (pinfo(peer)->ances == id)
+        {
+            pinfo(peer)->ances = 0;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+int getPlayersCountInWorld(ENetHost *server, string name)
+{
+    int count = 0;
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (pinfo(currentPeer)->currentWorld == name)
+            count++;
+    }
+    return count;
+}
+
+void sendPlayerLeave(ENetHost *server, ENetPeer *peer, player *info)
+{
+    ENetPeer *currentPeer;
+    for (currentPeer = server->peers;
+         currentPeer < &server->peers[server->peerCount];
+         ++currentPeer)
+    {
+        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+            continue;
+        if (isHere(peer, currentPeer))
+        {
+            GamePacket p = GamePacketBuilder()
+                               .appendString("OnRemove")
+                               .appendString("netID|" + std::to_string(info->netID) + "\n")
+                               .build();
+            p.send(peer);
+            p.send(currentPeer);
+            if (peer != currentPeer)
+                Packets::consoleMessage(currentPeer, "`5<`w" + info->name + "`` left, `w" + std::to_string(getPlayersCountInWorld(server, info->currentWorld) - 1) + "`` others here>``");
+        }
+    }
+}
+
+void sendmusic(ENetPeer *peer, string music)
+{
+    string text = "action|play_sfx\nfile|audio/" + music + ".wav\ndelayMS|0\n";
+    std::vector<BYTE> data(5 + text.length());
+    BYTE zero = 0;
+    int type = 3;
+    memcpy(&data[0], &type, 4);
+    memcpy(&data[4], text.c_str(), text.length());
+    memcpy(&data[4 + text.length()], &zero, 1);
+    ENetPacket *packet2 = enet_packet_create((void *)&data[0],
+                                             5 + text.length(),
+                                             ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(peer, 0, packet2);
+}
+
+void time_left(ENetPeer *peer, int n, string w)
+{
+    int day = n / (24 * 3600);
+    n = n % (24 * 3600);
+    int hour = n / 3600;
+    n %= 3600;
+    int minutes = n / 60;
+    n %= 60;
+    int seconds = n;
+    Packets::consoleMessage(peer, "`4Sorry this account is " + w + "`o. and will be removed in `w" + std::to_string(day) + " days, " + std::to_string(hour) + " hours, " + std::to_string(minutes) + " mins, " + std::to_string(seconds) + " secs. `ocontact server developer for more info.");
+}
+
+void sendWrench(ENetPeer *peer, bool owner, bool mod, bool dev, bool mySelf)
+{
+    if (dev)
+    {
+        if (mySelf)
+        {
+        }
+        else
+        {
+        }
+    }
+    else if (mod)
+    {
+        if (mySelf)
+        {
+        }
+        else
+        {
+        }
+    }
+    else if (owner)
+    {
+        if (mySelf)
+        {
+        }
+        else
+        {
+        }
+    }
+    else
+    {
+        if (mySelf)
+        {
+        }
+        else
+        {
+        }
+    }
+}
+  

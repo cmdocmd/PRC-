@@ -1,13 +1,3 @@
-
-#pragma once
-#include <iostream>
-#include "enet/include/enet/enet.h"
-#include <string.h>
-
-typedef unsigned char BYTE;
-
-using std::string;
-
 #pragma once
 #include <iostream>
 #include "enet/include/enet/enet.h"
@@ -268,6 +258,17 @@ namespace Packets
             .build()
             .send(peer);
     }
+    void onaddnotification(ENetPeer *peer, string message)
+    {
+        GamePacketBuilder()
+            .appendString("OnAddNotification")
+            .appendString("interface/atomic_button.rttex")
+            .appendString(message)
+            .appendString("audio/hub_open.wav")
+            .appendInt(0)
+            .build()
+            .send(peer);
+    }
     void ontalkbubble(ENetPeer *peer, int netid, string message, int app = 0)
     {
         GamePacketBuilder()
@@ -309,6 +310,34 @@ namespace Packets
                 p3.send(currentPeer);
             }
         }
+    }
+
+    void onkill(ENetPeer *peer)
+    {
+        GamePacket p3 = GamePacketBuilder()
+                            .appendString("OnKilled")
+                            .build();
+        memcpy(p3.data + 8, &(pinfo(peer)->netID), 4);
+        p3.send(peer);
+    }
+
+    void onfreezestate(ENetPeer *peer, int state)
+    {
+        GamePacket p3 = GamePacketBuilder()
+                            .appendString("OnSetFreezeState")
+                            .appendIntx(state)
+                            .build();
+        memcpy(p3.data + 8, &(pinfo(peer)->netID), 4);
+        p3.send(peer);
+    }
+
+    void onoverlay(ENetPeer *peer, string message)
+    {
+        GamePacketBuilder()
+            .appendString("OnTextOverlay")
+            .appendString(message)
+            .build()
+            .send(peer);
     }
 
     void refresh_data(ENetPeer *peer)

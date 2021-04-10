@@ -157,9 +157,8 @@ namespace Events
                     if (pinfo(peer)->username.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890") != std::string::npos)
                     {
                         Packets::consoleMessage(peer, "`rPlease remove special characters before login");
-                        return;
                     }
-                    if (CHECK_LOGIN(pinfo(peer)->username, pinfo(peer)->password)) //correct username and password
+                    else if (CHECK_LOGIN(pinfo(peer)->username, pinfo(peer)->password)) //correct username and password
                     {
                         std::istream *blobdata = PLAYER_DATA(pinfo(peer)->username);
                         delete (player *)peer->data;
@@ -169,12 +168,36 @@ namespace Events
                             ia >> ply;
                         }
                         peer->data = ply;
+                        pinfo(peer)->isCorrect = true;
+                        pinfo(peer)->InLobby = true;
                         pinfo(peer)->userID = PLAYER_ID(pinfo(peer)->username);
-                        SendWorldOffers(peer);
+                        if (pinfo(peer)->ban != 0)
+                        {
+                            int to = pinfo(peer)->bantime;
+                            time_t now = time(NULL);
+                            time_t banned = pinfo(peer)->ban;
+                            if (now - banned > to)
+                            {
+                                pinfo(peer)->ban = 0;
+                                pinfo(peer)->bantime = 0;
+                                Packets::consoleMessage(peer, "`$Your ban have been removed please behave better this time");
+                                SendWorldOffers(peer);
+                            }
+                            else
+                            {
+                                int left = now - banned;
+                                int start = to - left;
+                                time_left(peer, start, "banned");
+                            }
+                        }
+                        else
+                        {
+                            SendWorldOffers(peer);
+                        }
                     }
                     else
                     {
-                        std::cout << "INCorrect" << std::endl;
+                        Packets::consoleMessage(peer, "`rWrong username or password");
                     }
                 }
             }
@@ -190,7 +213,91 @@ namespace Events
             {
                 Packets::dialog(peer, "set_default_color|`o\n\nadd_label_with_icon|big|`wSocial Portal``|left|1366|\n\nadd_spacer|small|\nadd_button|friends|`wShow Friends``|left|||\nadd_button|create_guild|`wCreate Guild``|left|||\nend_dialog||OK||\n");
             }
-            if (cch.find("action|refresh") != std::string::npos)
+            if (cch.find("action|respawn") == 0)
+            {
+                if (cch.find("action|respawn_spike") == 0)
+                {
+                    Respawn(peer, true);
+                }
+                else
+                {
+                    Respawn(peer, false);
+                }
+            }
+            if (cch.find("action|wrench\n|netid|") == 0)
+            {
+                std::stringstream ss(cch);
+                std::string to;
+                while (std::getline(ss, to, '\n'))
+                {
+                    std::vector<string> ex = explode("|", to);
+                    if (ex.size() == 3)
+                    {
+                        if (ex[1] == "netid")
+                        {
+                            if (is_digits(ex[2]))
+                            {
+                                int id = stoi(ex[2]);
+                                if (id > 1 || id <= static_cast<int>(itemDefs.size()))
+                                {
+                                    Worlds *world = getPlyersWorld(peer);
+                                    if (pinfo(peer)->username == world->owner && pinfo(peer)->adminLevel < 666)
+                                    {
+                                        sendWrench(peer, true, false, false, (id == pinfo(peer)->netID));
+                                    }
+                                    else if (pinfo(peer)->adminLevel == 666)
+                                    {
+                                        sendWrench(peer, false, true, false, (id == pinfo(peer)->netID));
+                                    }
+                                    else if (pinfo(peer)->adminLevel == 999)
+                                    {
+                                        sendWrench(peer, false, false, true, (id == pinfo(peer)->netID));
+                                    }
+                                    else
+                                    {
+                                        sendWrench(peer, false, false, false, (id == pinfo(peer)->netID));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (cch.find("action|drop\n|itemID|") == 0)
+            {
+                std::stringstream ss(cch);
+                std::string to;
+                while (std::getline(ss, to, '\n'))
+                {
+                    std::vector<string> ex = explode("|", to);
+                    if (ex.size() == 3)
+                    {
+                        if (ex[1] == "itemID")
+                        {
+                            if (is_digits(ex[2]))
+                            {
+                                int id = stoi(ex[2]);
+                                if (id <= static_cast<int>(itemDefs.size()) && id > 0)
+                                {
+                                    if (LEGAL_ITEM(peer, id))
+                                    {
+                                        if (id == 18 || id == 32)
+                                        {
+                                            Packets::onoverlay(peer, "You can't drop that.");
+                                        }
+                                        else
+                                        {
+                                            pinfo(peer)->dropid = id;
+                                            Packets::dialog(peer, "add_label_with_icon|big|`wDrop " + itemDefs[id].name + "``|left|" + std::to_string(id) + "|\nadd_textbox|`oHow many to drop?|\nadd_text_input|dropitemcount|||5|\nadd_textbox|`4Warning: `oAny player who asks you to drop items is scamming you. We cannot restore scammed items.``|\nend_dialog|dropdialog|Cancel|Ok|\n");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (cch.find("refresh_item_data") != std::string::npos)
             {
                 Packets::refresh_data(peer);
             }
@@ -212,6 +319,10 @@ namespace Events
                     {
                         break;
                     }
+                    if (!pinfo(peer)->isCorrect)
+                    {
+                        break;
+                    }
                     joinWorld(server, peer, ex[1], 0, 0);
                 }
                 if (ex[0] == "action")
@@ -219,6 +330,12 @@ namespace Events
                     if (ex[1] == "quit")
                     {
                         enet_peer_disconnect_later(peer, 0);
+                    }
+                    if (ex[1] == "quit_to_exit")
+                    {
+                        sendPlayerLeave(server, peer, pinfo(peer));
+                        pinfo(peer)->currentWorld = "EXIT";
+                        SendWorldOffers(peer);
                     }
                     if (ex[1] == "join_request")
                     {
@@ -255,6 +372,7 @@ namespace Events
                     {
                         pinfo(peer)->joinClothesUpdated = true;
                         updateAllClothes(server, peer);
+                        sendState(server, peer);
                     }
                     break;
                 default:
@@ -268,45 +386,122 @@ namespace Events
                 }
                 if (pMov->packetType == 10) //clothes
                 {
-                    switch (itemDefs[pMov->plantingTree].clothingType)
+                    if (pMov->plantingTree <= static_cast<int>(itemDefs.size()))
                     {
-                    case ClothTypes::BACK:
-                        pinfo(peer)->back = (pinfo(peer)->back == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    case ClothTypes::FACE:
-                        if (itemDefs[pMov->plantingTree].blockType == BlockTypes::LOCK)
+                        if (LEGAL_ITEM(peer, pMov->plantingTree))
                         {
+                            switch (itemDefs[pMov->plantingTree].clothingType)
+                            {
+                            case ClothTypes::BACK:
+                                pinfo(peer)->back = (pinfo(peer)->back == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                if (pinfo(peer)->back == 0)
+                                {
+                                    pinfo(peer)->canDoubleJump = false;
+                                }
+                                else
+                                {
+                                    pinfo(peer)->canDoubleJump = true;
+                                }
+                                sendState(server, peer);
+                                break;
+                            case ClothTypes::FACE:
+                                pinfo(peer)->face = (pinfo(peer)->face == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                break;
+                            case ClothTypes::FEET:
+                                pinfo(peer)->feet = (pinfo(peer)->feet == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                break;
+                            case ClothTypes::MASK:
+                                pinfo(peer)->mask = (pinfo(peer)->mask == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                break;
+                            case ClothTypes::HAND:
+                                pinfo(peer)->hand = (pinfo(peer)->hand == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                break;
+                            case ClothTypes::HAIR:
+                                if (itemDefs[pMov->plantingTree].blockType == BlockTypes::LOCK)
+                                {
+                                }
+                                else
+                                {
+                                    pinfo(peer)->hair = (pinfo(peer)->hair == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                }
+                                break;
+                            case ClothTypes::NECKLACE:
+                                pinfo(peer)->neck = (pinfo(peer)->neck == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                break;
+                            case ClothTypes::ANCES:
+                                pinfo(peer)->ances = (pinfo(peer)->ances == pMov->plantingTree) ? 0 : pMov->plantingTree;
+                                break;
+                            default:
+                                break;
+                            }
+                            Packets::sendclothes(peer, server);
                         }
-                        else
-                        {
-                            pinfo(peer)->face = (pinfo(peer)->face == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        }
-                        break;
-                    case ClothTypes::FEET:
-                        pinfo(peer)->feet = (pinfo(peer)->feet == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    case ClothTypes::MASK:
-                        pinfo(peer)->mask = (pinfo(peer)->mask == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    case ClothTypes::HAND:
-                        pinfo(peer)->hand = (pinfo(peer)->hand == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    case ClothTypes::HAIR:
-                        pinfo(peer)->hair = (pinfo(peer)->hair == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    case ClothTypes::NECKLACE:
-                        pinfo(peer)->neck = (pinfo(peer)->neck == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    case ClothTypes::ANCES:
-                        pinfo(peer)->ances = (pinfo(peer)->ances == pMov->plantingTree) ? 0 : pMov->plantingTree;
-                        break;
-                    default:
-                        break;
                     }
-                    Packets::sendclothes(peer, server);
                 }
                 if (pMov->packetType == 11) //take
                 {
+                    int UID = pMov->plantingTree;
+                    if (UID > 0)
+                    {
+                        if (world != NULL)
+                        {
+                            int idx = -1;
+                            for (int i = 0; i < static_cast<int>(world->droppeditems.size()); i++)
+                            {
+                                if (world->droppeditems[i].uid == UID)
+                                {
+                                    idx = i;
+                                }
+                                if (idx != -1)
+                                {
+                                    int id = world->droppeditems[idx].id;
+                                    float xx = world->droppeditems[idx].x;
+                                    float yy = world->droppeditems[idx].y;
+                                    int am = world->droppeditems[idx].count;
+                                    if (id == 112)
+                                    {
+                                        pinfo(peer)->gem += am;
+                                        // packet::onsetbux(peer);
+                                    }
+                                    else
+                                    {
+                                        int index = -1;
+                                        for (int i = 0; i < static_cast<int>(pinfo(peer)->inv.size()); i++)
+                                        {
+                                            if (pinfo(peer)->inv[i].itemID == id)
+                                            {
+                                                index = i;
+                                            }
+                                        }
+                                        if (index != -1)
+                                        {
+                                            int total = pinfo(peer)->inv[index].itemCount + am;
+                                            if (total > 200)
+                                            {
+                                                pinfo(peer)->inv[index].itemCount = 200;
+                                                DropItem(server, peer, -1, (float)pinfo(peer)->x + (32 * (pinfo(peer)->isRotatedLeft ? -1 : 1)), (float)pinfo(peer)->y, id, total - 200, 0);
+                                            }
+                                            else
+                                            {
+                                                pinfo(peer)->inv[index].itemCount += am;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Add_ITEM(peer, id, am);
+                                        }
+                                    }
+                                    world->droppeditems.erase(world->droppeditems.begin() + idx);
+                                    world->dropsize = world->droppeditems.size();
+                                    sendTake(server, peer, pinfo(peer)->netID, xx, yy, UID);
+                                }
+                                else
+                                {
+                                    Packets::ontalkbubble(peer, pinfo(peer)->netID, "`wToo Far Away");
+                                }
+                            }
+                        }
+                    }
                 }
                 if (pMov->packetType == 18)
                 {
@@ -316,7 +511,7 @@ namespace Events
                 {
                 }
 
-                if (pMov->punchX != -1 && pMov->punchY != -1) //TODO PLACE BLOCKS
+                if (pMov->punchX >= 0 && pMov->punchY >= 0 && pMov->punchX < 100 && pMov->punchY < 100) //TODO PLACE BLOCKS
                 {
                     if (world != NULL)
                     {
@@ -328,7 +523,7 @@ namespace Events
                             {
                                 if (world->isPublic)
                                 {
-                                    if (itemDefs[world->items[pMov->punchX + (pMov->punchY * world->width)].foreground].blockType == BlockTypes::LOCK)
+                                    if (itemDefs[world->items[pMov->punchX][pMov->punchY].foreground].blockType == BlockTypes::LOCK)
                                     {
                                         if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
                                         {
@@ -360,6 +555,35 @@ namespace Events
 
                             case 32:
                             {
+                                int block = world->items[pMov->punchX][pMov->punchY].foreground;
+                                if (world->isPublic)
+                                {
+                                    if (pinfo(peer)->username != world->owner && pinfo(peer)->adminLevel < 666)
+                                    {
+                                        if (itemDefs[block].blockType != BlockTypes::LOCK)
+                                        {
+                                            onWrench(world, pMov->punchX, pMov->punchY, peer);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        onWrench(world, pMov->punchX, pMov->punchY, peer);
+                                    }
+                                }
+                                else
+                                {
+                                    if (block == 6016) //something all can wrench like growscan
+                                    {
+                                        onWrench(world, pMov->punchX, pMov->punchY, peer);
+                                    }
+                                    else
+                                    {
+                                        if (pinfo(peer)->username == world->owner || pinfo(peer)->adminLevel >= 666)
+                                        {
+                                            onWrench(world, pMov->punchX, pMov->punchY, peer);
+                                        }
+                                    }
+                                }
                             }
                             break;
 
@@ -402,6 +626,7 @@ namespace Events
     }
     void Disconnect(ENetPeer *peer)
     {
+        Reset_Values(peer);
         if (pinfo(peer)->inv.size() >= 2)
         {
             UPDATE(serialize_player((player *)peer->data), pinfo(peer)->username);

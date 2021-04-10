@@ -4,6 +4,7 @@
 #include <cppconn/exception.h>
 #include <cppconn/prepared_statement.h>
 #include <sstream>
+#include <boost/algorithm/string.hpp>
 
 sql::Driver *driver;
 sql::Connection *con;
@@ -85,7 +86,10 @@ bool ACCOUNT_EXIST(std::string growid)
 
     while (result->next())
     {
-        if (result->getString(2).c_str() == growid)
+        std::string name = result->getString(2).c_str();
+        boost::to_lower(name);
+        boost::to_lower(growid);
+        if (name ==  growid)
         {
             exist = true;
         }
@@ -144,7 +148,7 @@ std::istream* PLAYER_DATA(std::string growid)
         std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
         exit(1);
     }
-    std::istream *blobdata;
+    std::istream *blobdata = NULL;
     con->setSchema("gt");
 
     pstmt = con->prepareStatement("SELECT * FROM players WHERE username = ?");

@@ -16,19 +16,12 @@ typedef unsigned char __int8;
 typedef unsigned short __int16;
 typedef unsigned int DWORD;
 
-void LOAD_WORLDS()
-{
-    GET_WORLD("TEST").info;
-    GET_WORLD("MAIN").info;
-    GET_WORLD("ADMIN").info;
-    GET_WORLD("NEW").info;
-}
-
 void Start_ENet()
 {
     printf("[ENet]  Starting...\n");
     enet_initialize();
     ENetAddress address;
+    enet_address_set_host(&address, "0.0.0.0");
     address.port = 17091;
     server = enet_host_create(&address, 1024, 10, 0, 0);
     if (server == NULL)
@@ -80,7 +73,7 @@ void Run()
 
 int main()
 {
-   // LOAD_WORLDS();
+    // LOAD_WORLDS();
     cout << "RebornTM\n";
     Start_ENet();
     itemsbuild();
