@@ -4,8 +4,11 @@
 
 #include <iostream>
 #include <vector>
+#include <signal.h>
 
 #include "worlds.h"
+
+extern bool exits;
 
 class Server
 {
@@ -18,7 +21,7 @@ public:
     void Save_Worlds(Server *server);
     std::stringstream serialize_world(Worlds const &world);
     Worlds deserialize(std::string world);
-    void sendGlobalMessage(std::string message, bool Global = false);
-    void sendModsLogs(std::string message, bool log = false);
+    void sendGlobalMessage(std::string message, std::string music, bool Global = false);
+    void sendModsLogs(std::string message, std::string music, bool log = false);
 };
 #endif

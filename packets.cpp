@@ -106,6 +106,7 @@ void Packets::onoverlay(ENetPeer *peer, std::string message)
 
 void Packets::onsetpos(ENetPeer *peer, int x, int y)
 {
+    pinfo(peer)->usingDoor = true;
     GamePacket p2 = GamePacketBuilder()
                         .appendString("OnSetPos")
                         .appendFloat(x, y)
@@ -123,25 +124,26 @@ void Packets::onsetbux(ENetPeer *peer)
         .send(peer);
 }
 
-void Packets::onaddnotification(ENetPeer *peer, std::string message)
+void Packets::onaddnotification(ENetPeer *peer, std::string message, std::string music)
 {
     GamePacketBuilder()
         .appendString("OnAddNotification")
         .appendString("interface/atomic_button.rttex")
         .appendString(message)
-        .appendString("audio/hub_open.wav")
+        .appendString(music)
         .appendInt(0)
         .build()
         .send(peer);
+    //"audio/hub_open.wav"
 }
 
-void Packets::ontalkbubble(ENetPeer *peer, int netid, std::string message)
+void Packets::ontalkbubble(ENetPeer *peer, int netid, std::string message, int id)
 {
     GamePacketBuilder()
         .appendString("OnTalkBubble")
         .appendIntx(netid)
         .appendString(message)
-        .appendIntx(0)
+        .appendIntx(id)
         .build()
         .send(peer);
 }
@@ -191,16 +193,15 @@ void Packets::onfailedtoenterworld(ENetPeer *peer)
         .send(peer);
 }
 
-/*void Packets::setrespawnpos(ENetPeer *peer, int x, int y)
+void Packets::setrespawnpos(ENetPeer *peer, int x, int y)
 {
-    WorldInfo *world = getPlyersWorld(peer);
     GamePacket p3 = GamePacketBuilder()
                         .appendString("SetRespawnPos")
-                        .appendInt(x + (y * world->width))
+                        .appendInt(x + (y * 100))
                         .build();
     memcpy(p3.data + 8, &(pinfo(peer)->netID), 4);
     p3.send(peer);
-}*/
+}
 
 void Packets::onkill(ENetPeer *peer)
 {
@@ -209,6 +210,16 @@ void Packets::onkill(ENetPeer *peer)
                         .build();
     memcpy(p3.data + 8, &(pinfo(peer)->netID), 4);
     p3.send(peer);
+}
+
+void Packets::onparticleeffect(ENetPeer *peer, int effect, int x, int y)
+{
+    GamePacketBuilder()
+        .appendString("OnParticleEffect")
+        .appendIntx(effect)
+        .appendFloat(x, y)
+        .build()
+        .send(peer);
 }
 
 void Packets::ontradestatus(ENetPeer *peer, int netid, std::string s2, std::string offername, std::string box, bool trade)

@@ -106,6 +106,7 @@ struct ItemDefinition
     std::string description = "Nothing to see.";
     bool updatedgem = false;
     int last_tile_broken = 0;
+    std::vector<int> gem;
 };
 
 extern std::vector<ItemDefinition> itemDefs;
@@ -114,3 +115,4 @@ std::ifstream::pos_type filesize(const char *filename);
 uint32_t HashString(unsigned char *str, int len);
 unsigned char *getA(std::string fileName, int *pSizeOut);
 void itemsbuild();
+void buildgem();

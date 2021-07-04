@@ -18,7 +18,7 @@ const std::string SQserver = "tcp://127.0.0.1:3306";
 const std::string username = "root";
 const std::string password = "";
 
-void INSERT_ACCOUNT(std::string growid, std::string pass, std::stringstream blob)
+void INSERT_ACCOUNT(std::string growid, std::string pass, std::string email, std::stringstream blob)
 {
     try
     {
@@ -32,10 +32,11 @@ void INSERT_ACCOUNT(std::string growid, std::string pass, std::stringstream blob
     }
 
     con->setSchema("gt");
-    pstmt = con->prepareStatement("INSERT INTO players(username, password, data) VALUES(?,?,?)");
+    pstmt = con->prepareStatement("INSERT INTO players(username, password, email, data) VALUES(?,?,?,?)");
     pstmt->setString(1, growid);
     pstmt->setString(2, pass);
-    pstmt->setBlob(3, &blob);
+    pstmt->setString(3, email);
+    pstmt->setBlob(4, &blob);
     pstmt->execute();
 
     delete pstmt;
@@ -61,6 +62,31 @@ void UPDATE(std::stringstream str, std::string growid)
     pstmt = con->prepareStatement("UPDATE players SET data = ? WHERE username = ?");
     pstmt->setBlob(1, &str);
     pstmt->setString(2, growid);
+    pstmt->executeQuery();
+
+    delete con;
+    delete pstmt;
+}
+
+void UPDATE_NAME(std::string newname, int userid)
+{
+    try
+    {
+        driver = get_driver_instance();
+        con = driver->connect(SQserver, username, password);
+    }
+    catch (sql::SQLException &e)
+    {
+        std::cout << "Could not connect to server. Error message: " << e.what() << std::endl;
+        exit(1);
+    }
+
+    con->setSchema("gt");
+
+    //update
+    pstmt = con->prepareStatement("UPDATE players SET username = ? WHERE userid = ?");
+    pstmt->setString(1, newname);
+    pstmt->setInt(2, userid);
     pstmt->executeQuery();
 
     delete con;
@@ -161,7 +187,7 @@ std::istream* PLAYER_DATA(std::string growid)
     {
         if (result->getString(2).c_str() == growid)
         {
-            blobdata = result->getBlob(4);
+            blobdata = result->getBlob(5);
         }
     }
 

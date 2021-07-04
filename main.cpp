@@ -1,12 +1,19 @@
 #include <iostream>
+#include <signal.h>
 #include "enet/enet.h"
 #include "server.h"
 #include "worlds.h"
 
+void exitHandler(int s)
+{
+    exits = true;
+}
+
 int main()
 {
-    Worlds world = world.GenerateWorld("CMD");
-    Server * server = new Server(17091);
+    signal(SIGINT, exitHandler);
+    Server *server = new Server(17091);
+    Worlds world = world.GenerateWorld("ADMIN");
     server->m_worlds.push_back(world);
     server->Run(server);
     return 0;

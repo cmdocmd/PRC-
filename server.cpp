@@ -1,4 +1,5 @@
 #include <iostream>
+#include <signal.h>
 
 #include "server.h"
 #include "enet/enet.h"
@@ -14,9 +15,10 @@
 #include <boost/serialization/array.hpp>
 #include <boost/algorithm/string.hpp>
 
-
 ENetHost *Host;
 time_t old = time(NULL);
+
+bool exits = false;
 
 Server::Server(int port)
 {
@@ -35,6 +37,7 @@ Server::Server(int port)
     enet_host_compress_with_range_coder(Host);
     printf("[ENet] Started successfly\n");
     itemsbuild();
+    buildgem();
 }
 
 std::stringstream Server::serialize_world(Worlds const &world)
@@ -49,6 +52,7 @@ std::stringstream Server::serialize_world(Worlds const &world)
 
 void Server::Flush_Worlds(Worlds world, Server *server)
 {
+    std::cout << world.Name << "\n";
     if (WORLD_EXIST(world.Name))
     {
         UPDATE_WORLD(server->serialize_world(world), world.Name);
@@ -76,10 +80,21 @@ void Server::Run(Server *server)
     while (true)
     {
         time_t now = time(NULL);
-        if (now - old > to)
+        if (now - old > to || exits)
         {
             old = now;
+            std::vector<ENetPeer *> all = All(Host);
+            for (ENetPeer *currentPeer : all)
+            {
+                UPDATE(serialize_player((Players *)currentPeer->data), pinfo(currentPeer)->username);
+            }
             Save_Worlds(server);
+            if (exits)
+            {
+                std::cout << "Saving all players and worlds\n";
+                delete server;
+                exit(0);
+            }
         }
         while (enet_host_service(Host, &event, 0) > 0)
         {
@@ -87,20 +102,23 @@ void Server::Run(Server *server)
             {
             case ENET_EVENT_TYPE_CONNECT:
             {
-                std::cout << "Connecting" << "\n";
+                std::cout << "Connecting"
+                          << "\n";
                 Connect(event.peer, Host);
                 continue;
             }
             case ENET_EVENT_TYPE_RECEIVE:
             {
-                std::cout << "Reciving" << "\n";
+                std::cout << "Reciving"
+                          << "\n";
                 Recieve(server, Host, event.packet, event.peer, get_text(event.packet));
                 enet_packet_destroy(event.packet);
                 continue;
             }
             case ENET_EVENT_TYPE_DISCONNECT:
             {
-                std::cout << "disconnecting" << "\n";
+                std::cout << "disconnecting"
+                          << "\n";
                 Disconnect(Host, event.peer);
                 continue;
             }
@@ -120,7 +138,7 @@ Worlds Server::deserialize(std::string world)
     return wld;
 }
 
-void Server::sendGlobalMessage(std::string message, bool Global /* false */)
+void Server::sendGlobalMessage(std::string message, std::string music, bool Global /* false */)
 {
     Packets p;
     std::string str = "";
@@ -136,10 +154,11 @@ void Server::sendGlobalMessage(std::string message, bool Global /* false */)
     for (ENetPeer *currentPeer : all)
     {
         p.consoleMessage(currentPeer, str);
+        sendmusic(currentPeer, music);
     }
 }
 
-void Server::sendModsLogs(std::string message, bool log /* false */)
+void Server::sendModsLogs(std::string message, std::string music, bool log /* false */)
 {
     Packets p;
     std::string str = "";
@@ -155,5 +174,6 @@ void Server::sendModsLogs(std::string message, bool log /* false */)
     for (ENetPeer *currentPeer : mod)
     {
         p.consoleMessage(currentPeer, str);
+        sendmusic(currentPeer, music);
     }
 }

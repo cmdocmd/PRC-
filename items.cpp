@@ -474,3 +474,36 @@ void itemsbuild()
     delete[] data;
     delete[] data1;
 }
+
+void buildgem() {
+	for (int i = 0; i < static_cast<int>(itemDefs.size()); i++) {
+		if ((itemDefs[i].id % 2 == 0)) {//not seed
+			if (itemDefs[i].rarity > 0 && itemDefs[i].rarity < 20) {
+				std::vector<int> v = { 1, i, i + 1, 0, 1, 1 , 1};
+				itemDefs[i].gem = v;
+			}
+			if (itemDefs[i].rarity >= 20 && itemDefs[i].rarity < 50) {
+				std::vector<int> v1 = { 1, i, i + 1, 0, 5, 5 , 1};
+				itemDefs[i].gem = v1;
+			}
+			if (itemDefs[i].rarity >= 50) {
+				std::vector<int> v2 = { 1, i, i + 1, 0, 5, 10, 10 , 1};
+				itemDefs[i].gem = v2;
+			}
+		}
+		else {
+			if (itemDefs[i].rarity > 0 && itemDefs[i].rarity < 20) {
+				std::vector<int> v3 = { 1, i, 0, 1 , 1};
+				itemDefs[i].gem = v3;
+			}
+			if (itemDefs[i].rarity >= 20 && itemDefs[i].rarity < 50) {
+				std::vector<int> v4 = { 1, i, 0, 5, 5 , 1};
+				itemDefs[i].gem = v4;
+			}
+			if (itemDefs[i].rarity >= 50) {
+				std::vector<int> v5 = { 1, i, 0, 5, 10, 10 , 1};
+				itemDefs[i].gem = v5;
+			}
+		}
+	}
+}

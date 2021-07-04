@@ -9,7 +9,7 @@
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/algorithm/string.hpp>
-
+#include <boost/serialization/array.hpp>
 
 class Server;
 
@@ -27,6 +27,26 @@ public:
     int x;
     int y;
     std::string is_open;
+};
+
+class Magplant
+{
+private:
+    friend class boost::serialization::access;
+    template <class Ar>
+    void serialize(Ar &ar, unsigned)
+    {
+        ar &x &y &id &amount &state &active &all_can_use;
+    }
+
+public:
+    int x;
+    int y;
+    int id;
+    int amount;
+    int state;
+    int active;
+    int all_can_use;
 };
 
 class Signs
@@ -137,6 +157,22 @@ public:
     std::vector<std::string> access;
 };
 
+class Dblocks
+{
+private:
+    friend class boost::serialization::access;
+    template <class Ar>
+    void serialize(Ar &ar, unsigned)
+    {
+        ar &x &y &id;
+    }
+
+public:
+    int x;
+    int y;
+    int id;
+};
+
 class WorldItem
 {
 private:
@@ -161,6 +197,32 @@ public:
     bool blue = false;
 };
 
+class Mannequine
+{
+private:
+    friend class boost::serialization::access;
+    template <class Ar>
+    void serialize(Ar &ar, unsigned)
+    {
+        ar &x &y &clothHair &clothHead &clothMask &clothHand &clothNeck &clothShirt &clothPants &clothFeet &clothBack
+            &text;
+    }
+
+public:
+    int x;
+    int y;
+    int clothHair;
+    int clothHead;
+    int clothMask;
+    int clothHand;
+    int clothNeck;
+    int clothShirt;
+    int clothPants;
+    int clothFeet;
+    int clothBack;
+    std::string text;
+};
+
 class Worlds
 {
 private:
@@ -168,9 +230,8 @@ private:
     template <class Ar>
     void serialize(Ar &ar, unsigned)
     {
-        ar &Width &Height &Name &items &owner &weather &id &dropsize &dropcount &isPublic &isNuked
-            &entrance_size &sign_size &safe_size &door_size &droppeditems &entrance &sign &safe &door
-                &bans &access &locks;
+        ar &Width &Height &Name &items &owner &weather &id &dropsize &dropcount &pbm &dmb &isPublic &isNuked
+            &jammed &pjammer &droppeditems &entrance &sign &safe &door &bans &access &locks &dblock &man &magplant;
     }
 
 public:
@@ -183,12 +244,12 @@ public:
     int id;
     int dropsize = 0;
     int dropcount = 1;
+    int pbm = 0;
+    int dmb = 0;
     bool isPublic = true;
     bool isNuked = false;
-    int entrance_size = 0;
-    int sign_size = 0;
-    int safe_size = 0;
-    int door_size = 0;
+    bool jammed = false;
+    bool pjammer = false;
     std::vector<DroppedItem> droppeditems;
     std::vector<Entrances> entrance;
     std::vector<Signs> sign;
@@ -197,13 +258,27 @@ public:
     std::vector<WorldBans> bans;
     std::vector<std::string> access;
     std::vector<Lock> locks;
+    std::vector<Dblocks> dblock;
+    std::vector<Mannequine> man;
+    std::vector<Magplant> magplant;
     Worlds GenerateWorld(std::string name);
 };
 
-Worlds GET_WORLD(Server *server, std::string name);
-void sendWorld(ENetPeer *peer, Worlds world);
-void joinWorld(Server *server, ENetHost *Host, ENetPeer *peer, std::string act, int x2, int y2);
+struct AWorld
+{
+    Worlds *ptr;
+    Worlds info;
+    int id;
+};
+
 std::vector<Worlds> GetRandomWorlds(Server *server);
 int getPlayersCountInWorld(ENetHost *Host, std::string name);
-void SendWorldOffers(Server *server, ENetHost * Host, ENetPeer *peer);
-Worlds getPlyersWorld(Server *server, ENetPeer *peer);
+void SendWorldOffers(Server *server, ENetHost *Host, ENetPeer *peer);
+AWorld GET_WORLD(Server *server, std::string world);
+Worlds *getPlyersWorld(Server *server, ENetPeer *peer);
+void sendWorld(ENetPeer *peer, Worlds *world);
+void joinWorld(Server *server, ENetHost *Host, ENetPeer *peer, std::string act, int x2, int y2);
+void Nothing(ENetPeer *peer, int x, int y);
+void OnPlace(int x, int y, int tile, Worlds *world, ENetPeer *peer, ENetHost *Host, Server *server);
+void OnPunch(int x, int y, Worlds *world, ENetPeer *peer, ENetHost *Host, Server *server);
+void onWrench(Worlds *world, int x, int y, ENetPeer *peer);

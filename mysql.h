@@ -3,8 +3,9 @@
 #include <iostream>
 #include <sstream>
 
-void INSERT_ACCOUNT(std::string growid, std::string pass, std::stringstream blob);
+void INSERT_ACCOUNT(std::string growid, std::string pass, std::string email, std::stringstream blob);
 void UPDATE(std::stringstream str, std::string growid);
+void UPDATE_NAME(std::string newname, int userid);
 bool ACCOUNT_EXIST(std::string growid);
 bool CHECK_LOGIN(std::string growid, std::string pass);
 std::istream* PLAYER_DATA(std::string growid);

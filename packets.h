@@ -201,8 +201,8 @@ public:
 	void onoverlay(ENetPeer *peer, std::string message);
 	void onsetpos(ENetPeer *peer, int x, int y);
 	void onsetbux(ENetPeer *peer);
-	void onaddnotification(ENetPeer *peer, std::string message);
-	void ontalkbubble(ENetPeer *peer, int netid, std::string message);
+	void onaddnotification(ENetPeer *peer, std::string message, std::string music);
+	void ontalkbubble(ENetPeer *peer, int netid, std::string message, int id);
 	void onfreezestate(ENetPeer *peer, int state);
 	void onforcetradeend(ENetPeer *peer);
 	void onzoomcamera(ENetPeer *peer, int zoom);
@@ -217,4 +217,5 @@ public:
 	void onremove(ENetPeer *peer, Players *data);
 	void sendaction(ENetPeer *peer, int netid, std::string action);
 	void refresh_data(ENetPeer *peer);
+	void onparticleeffect(ENetPeer *peer, int effect, int x, int y);
 };

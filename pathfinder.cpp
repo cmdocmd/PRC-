@@ -31,10 +31,10 @@ bool isValid(int x, int y)
     return (x >= 0) && (x < ROW) && (y >= 0) && (y < COL);
 }
 
-bool isUnBlocked(Worlds world, int x, int y)
+bool isUnBlocked(Worlds *world, int x, int y)
 {
     // Returns true if the cell is not blocked else false
-    if (world.items[x][y].foreground == 0 || world.items[x][y].foreground == 6 || itemDefs[world.items[x][y].foreground].blockType == BlockTypes::DOOR || itemDefs[world.items[x][y].foreground].blockType == BlockTypes::SIGN || itemDefs[world.items[x][y].foreground].blockType == BlockTypes::CHECKPOINT || itemDefs[world.items[x][y].foreground].blockType == BlockTypes::SEED || itemDefs[world.items[x][y].foreground].blockType == BlockTypes::WEATHER_MACHINE || itemDefs[world.items[x][y].foreground].blockType == BlockTypes::BOARD)
+    if (world->items[x][y].foreground == 0 || world->items[x][y].foreground == 6 || itemDefs[world->items[x][y].foreground].blockType == BlockTypes::DOOR || itemDefs[world->items[x][y].foreground].blockType == BlockTypes::SIGN || itemDefs[world->items[x][y].foreground].blockType == BlockTypes::CHECKPOINT || itemDefs[world->items[x][y].foreground].blockType == BlockTypes::SEED || itemDefs[world->items[x][y].foreground].blockType == BlockTypes::WEATHER_MACHINE || itemDefs[world->items[x][y].foreground].blockType == BlockTypes::BOARD ||  itemDefs[world->items[x][y].foreground].blockType == BlockTypes::GATEWAY)
         return (true);
     else
         return (false);
@@ -83,7 +83,7 @@ void tracePath(cell cellDetails[][COL], Pair dest)
     return;
 }
 
-bool aStarSearch(Worlds world, Pair src, Pair dest)
+bool aStarSearch(Worlds *world, Pair src, Pair dest)
 {
     // If the source is out of range
     if (isValid(src.first, src.second) == false)
@@ -396,7 +396,22 @@ bool aStarSearch(Worlds world, Pair src, Pair dest)
             }
         }
 
-        //----------- 5th Successor (North-East)
+    }
+
+    // When the destination cell is not found and the open
+    // list is empty, then we conclude that we failed to
+    // reach the destiantion cell. This may happen when the
+    // there is no way to destination cell (due to
+    // blockages)
+    if (foundDest == false)
+        printf("Failed to find the Destination Cell\n");
+
+    return false;
+}
+
+/*
+
+       //----------- 5th Successor (North-East)
         //------------
 
         // Only process this cell if this is a valid one
@@ -598,15 +613,5 @@ bool aStarSearch(Worlds world, Pair src, Pair dest)
                 }
             }
         }
-    }
 
-    // When the destination cell is not found and the open
-    // list is empty, then we conclude that we failed to
-    // reach the destiantion cell. This may happen when the
-    // there is no way to destination cell (due to
-    // blockages)
-    if (foundDest == false)
-        printf("Failed to find the Destination Cell\n");
-
-    return false;
-}
+*/
